@@ -6,5 +6,5 @@ rem "/Zi" informação pra debug
 
 mkdir ..\build
 pushd ..\build
-cl -nologo -FC -Zi ..\code\win32_handmade.cpp user32.lib
+cl -nologo -FC -Zi ..\code\win32_handmade.cpp user32.lib gdi32.lib
 popd
