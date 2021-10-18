@@ -1,16 +1,73 @@
 #include <windows.h>
+#include <stdint.h>
 
 #define internal 		static
 #define global_variable static
 #define local_persist 	static
+
+typedef int8_t int8;
+typedef int16_t int16;
+typedef int32_t int32;
+typedef int64_t int64;
+typedef uint8_t uint8;
+typedef uint16_t uint16;
+typedef uint32_t uint32;
+typedef uint64_t uint64;
 
 // TODO(Douglas): Por enquanto isso vai ser global. 
 global_variable bool Running;
 
 global_variable BITMAPINFO BitmapInfo;
 global_variable void *BitmapMemory;
-global_variable HBITMAP BitmapHandle;
-global_variable HDC BitmapDeviceContext;
+global_variable int BitmapWidth;
+global_variable int BitmapHeight;
+global_variable int BytesPerPixel = 4;
+
+internal void
+RenderWeirdGradient(int BlueOffset, int GreenOffset)
+{
+	/*
+		ORDEM NA MEMÓRIA: 			RR GG BB xx
+		CARREGADO (da memória):		xx BB GG RR
+		WINDOWS: 					xx RR GG BB
+		COPIADO PRA MEMÓRIA: 		BB GG RR xx
+	*/
+
+	int Width = BitmapWidth;
+	int Height = BitmapHeight;
+	int Pitch = Width * BytesPerPixel;
+	uint8 *Row = (uint8 *)BitmapMemory;
+
+	for(int Y = 0;
+	    Y < BitmapHeight;
+	    Y++)
+	{
+		//uint32 *Pixel = (uint32 *)BitmapMemory;
+		uint32 *Pixel = (uint32 *)Row;
+
+		for(int X = 0;
+		    X < BitmapWidth;
+		    X++)
+		{
+			//             0  8  16 24 32  
+			// Registrador: xx RR GG BB
+			// Memória: 	BB GG RR xx
+
+			uint8 Red = (X+Y*3 * X) + (GreenOffset-2) + BlueOffset;
+			uint8 Blue = 0;//(X + BlueOffset);
+			uint8 Green = 0;//(Y + GreenOffset);
+
+			*Pixel = (Red << 16) | (Green << 8) | Blue;
+			++Pixel;
+		}
+
+		// NOTE(Douglas): a expressão abaixo é a mesma coisa que a seguinte,
+		// no momento, pois não temos espaçamento na nossa memória, mas se
+		// tivessimos isso falharia.
+		//Row = (uint8 *)Pixel;
+		Row += Pitch;
+	}
+}
 
 // NOTE(Douglas): DIB: Device Independent Bitmap (é um bloco de memória que
 // pode ser manipulado pela gente e que o Windows usa pra desenhar usando
@@ -21,38 +78,43 @@ Win32ResizeDIBSection(int Width, int Height)
 	// TODO(Douglas): Talvez não esvaziar a memória primeiro, esvaziar depois, 
 	// e só esvaziar primeiro se falhar.
 
-	if(BitmapHandle)
+	if(BitmapMemory)
 	{
-		DeleteObject(BitmapHandle);
+		VirtualFree(BitmapMemory, 0, MEM_RELEASE);
 	}
 
-	if(!BitmapDeviceContext)
-	{
-		// TODO(Douglas): Deveríamos re-criar isso em circunstâncias específicas?
-		BitmapDeviceContext = CreateCompatibleDC(0);
-	}
+	BitmapWidth = Width;
+	BitmapHeight = Height;
 
 	BitmapInfo.bmiHeader.biSize = sizeof(BitmapInfo.bmiHeader);
-	BitmapInfo.bmiHeader.biWidth = Width;
-	BitmapInfo.bmiHeader.biHeight = Height;
+	BitmapInfo.bmiHeader.biWidth = BitmapWidth;
+	BitmapInfo.bmiHeader.biHeight = -BitmapHeight; // negativo: top-down, positivo: down-up
 	BitmapInfo.bmiHeader.biPlanes = 1;
 	BitmapInfo.bmiHeader.biBitCount = 32;
 	BitmapInfo.bmiHeader.biCompression = BI_RGB;
 
-	// TODO(Douglas): Talvez nós mesmos podemos alocar essa memória?
-	BitmapHandle = CreateDIBSection(BitmapDeviceContext,
-	                                &BitmapInfo,
-	                                DIB_RGB_COLORS,
-	                                &BitmapMemory,
-	                                0, 0);
+	// NOTE(Douglas): Graças ao Chris Hecker por explicar que "StretchDIBits",
+	// antigamente, era mais lento do que "BitBlt" nós não precisamos mais
+	// ter "DeviceContext" voando por ai.
+	int BitmapMemorySize = (BitmapWidth * BitmapHeight) * BytesPerPixel;
+	BitmapMemory = VirtualAlloc(0, BitmapMemorySize, MEM_COMMIT, PAGE_READWRITE);
+	
+	// TODO(Douglas): Provavelmente é preciso limpar isso aqui pra preto.
 }
 
 internal void
-Win32UpdateWindow(HDC DeviceContext, int X, int Y, int Width, int Height)
+Win32UpdateWindow(HDC DeviceContext, RECT *WindowRect)
 {
+	int ClientWidth = WindowRect->right - WindowRect->left;
+	int ClientHeight = WindowRect->bottom - WindowRect->top;
+
 	StretchDIBits(DeviceContext,
+	              /*
 	              X, Y, Width, Height,
 	              X, Y, Width, Height,
+	              */
+	              0, 0, ClientWidth, ClientHeight,
+	              0, 0, BitmapWidth, BitmapHeight,
 	              BitmapMemory,
 	              &BitmapInfo,
 	              DIB_RGB_COLORS, SRCCOPY);
@@ -77,11 +139,9 @@ Win32MainWindowCallback(HWND Window,
 		{
 			PAINTSTRUCT Paint;
 			HDC DeviceContext = BeginPaint(Window, &Paint);
-			int X = Paint.rcPaint.left;
-			int Y = Paint.rcPaint.top;
-			int Width = Paint.rcPaint.right - Paint.rcPaint.left;
-			int Height = Paint.rcPaint.bottom - Paint.rcPaint.top;
-			Win32UpdateWindow(DeviceContext, X, Y, Width, Height);
+			RECT ClientRect;
+			GetClientRect(Window, &ClientRect);
+			Win32UpdateWindow(DeviceContext, &ClientRect);
 			EndPaint(Window, &Paint);
 		} break;
 
@@ -132,7 +192,7 @@ WinMain(HINSTANCE Instance,
 
 	if(RegisterClassA(&WindowClass))
 	{
-		HWND WindowHandle = CreateWindowExA(0,
+		HWND Window = CreateWindowExA(0,
 		                                   WindowClass.lpszClassName,
 		                                   "Handmade Hero",
 		                                   WS_OVERLAPPEDWINDOW | WS_VISIBLE,
@@ -145,24 +205,39 @@ WinMain(HINSTANCE Instance,
 		                                   Instance,
 		                                   0);
 
-		if(WindowHandle)
+		if(Window)
 		{
-			Running = true;
+			int XOffset = 0;
+			int YOffset = 0;
 
+			Running = true;
 			while(Running)
 			{
 				MSG Message;
-				BOOL MessageResult = GetMessageA(&Message, 0, 0, 0);
 
-				if(MessageResult > 0)
+				while(PeekMessageA(&Message, 0, 0, 0, PM_REMOVE))
 				{
+					if(Message.message == WM_QUIT)
+					{
+						Running = false;
+					}
+
 					TranslateMessage(&Message);
 					DispatchMessageA(&Message);
 				}
-				else
-				{
-					break;
-				}
+
+				RenderWeirdGradient(XOffset, YOffset);
+
+				HDC DeviceContext = GetDC(Window);
+				RECT ClientRect;
+				GetClientRect(Window, &ClientRect);
+				//int ClientWidth = ClientRect.right - ClientRect.left;
+				//int ClientHeight = ClientRect.bottom - ClientRect.top;
+				Win32UpdateWindow(DeviceContext, &ClientRect);
+				ReleaseDC(Window, DeviceContext);
+
+				++XOffset;
+				YOffset += 2;
 			}
 		}
 		else
