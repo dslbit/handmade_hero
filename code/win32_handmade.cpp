@@ -1,5 +1,8 @@
 #include <windows.h>
+#include <hidsdi.h> // NOTE(Douglas): Para "Raw Input" do meu controle
 #include <xinput.h>
+#include <stdio.h>
+#include <assert.h>
 #include <stdint.h>
 
 #define internal 		static
@@ -197,9 +200,259 @@ Win32MainWindowCallback(HWND Window,
 
 	switch(Message)
 	{
+		// NOTE(Douglas): Testando implementação do Raw Input
+		case WM_CREATE:
+		{
+			RAWINPUTDEVICE RawInputDevice;
+			RawInputDevice.usUsagePage = 1; // Generic Desktop Controls
+			RawInputDevice.usUsage = 4; // joystrick
+			RawInputDevice.dwFlags = RIDEV_INPUTSINK;
+			RawInputDevice.hwndTarget = Window;
+
+			assert(RegisterRawInputDevices(&RawInputDevice, 1, sizeof(RAWINPUTDEVICE)) != 0);
+		} break;
+
 		case WM_ACTIVATEAPP:
 		{
 			OutputDebugStringA("WM_ACTIVATEAPP\n");
+		} break;
+
+		case WM_INPUT:
+		{
+			uint32 BufferSize;
+			if(GetRawInputData((HRAWINPUT) LParam,
+			                   RID_INPUT,
+			                   0,
+			                   &BufferSize,
+			                   sizeof(RAWINPUTHEADER)) == 0)
+			{
+				if(BufferSize > 0)
+				{
+					PRAWINPUT RawInputPointer;
+					HANDLE HeapHandle;
+					HeapHandle = GetProcessHeap();
+					RawInputPointer = (PRAWINPUT) HeapAlloc(HeapHandle, 0, BufferSize);
+					assert(RawInputPointer != 0);
+
+					uint32 BytesCopied = GetRawInputData((HRAWINPUT) LParam,
+					                                     RID_INPUT,
+					                                     RawInputPointer,
+					                                     &BufferSize,
+					                                     sizeof(RAWINPUTHEADER));
+					//ParseRawInput(RawInputPointer);
+					if(BytesCopied > 0)
+					{
+						// NOTE(Douglas): Se os dados vir de um dispositivo diferente de um mouse ou teclado
+						if(RawInputPointer->header.dwType == 2) 
+						{
+							uint32 PreparsedDataBufferSize = 0;
+							GetRawInputDeviceInfoA(RawInputPointer->header.hDevice,
+							                       RIDI_PREPARSEDDATA,
+							                       0,
+							                       &PreparsedDataBufferSize);
+
+							if(PreparsedDataBufferSize > 0)
+							{
+								// NOTE(Douglas): Tentar armazenar memória para os dados pré-analisados
+								PHIDP_PREPARSED_DATA PreparsedData = (PHIDP_PREPARSED_DATA) HeapAlloc(HeapHandle,
+								                                                                      0,
+								                                                                      PreparsedDataBufferSize);
+								if(GetRawInputDeviceInfoA(RawInputPointer->header.hDevice,
+								                          RIDI_PREPARSEDDATA,
+								                          PreparsedData,
+								                          &PreparsedDataBufferSize) != -1) // >= 0
+								{
+									// NOTE(Douglas): Obtendo as capacidades do dispositivo
+									HIDP_CAPS Caps;
+									if(HidP_GetCaps(PreparsedData,
+									                &Caps) == HIDP_STATUS_SUCCESS)
+									{
+										// NOTE(Douglas): Botões
+										PHIDP_BUTTON_CAPS ButtonCaps = (PHIDP_BUTTON_CAPS) HeapAlloc(HeapHandle,
+										                                                             0,
+										                                                             sizeof(HIDP_BUTTON_CAPS) * Caps.NumberInputButtonCaps);
+										USHORT ButtonCapsLength = Caps.NumberInputButtonCaps;
+										HidP_GetButtonCaps(HidP_Input,
+										                   ButtonCaps,
+										                   &ButtonCapsLength,
+										                   PreparsedData);
+										uint32 NumberOfButtons = ButtonCaps->Range.UsageMax - ButtonCaps->Range.UsageMin + 1;
+
+										ULONG UsageLength = NumberOfButtons * sizeof(USAGE);
+										PUSAGE Usage = (PUSAGE) HeapAlloc(HeapHandle,
+										                                  0,
+										                                  UsageLength);
+										HidP_GetUsages(HidP_Input,
+										               ButtonCaps->UsagePage,
+										               0,
+										               Usage,
+										               &UsageLength,
+										               PreparsedData,
+										               (PCHAR)RawInputPointer->data.hid.bRawData,
+										               RawInputPointer->data.hid.dwSizeHid);
+
+										int32 *ButtonStates = (int32 *) HeapAlloc(HeapHandle,
+										                                        0,
+										                                        NumberOfButtons * sizeof(int32));
+										for(uint32 i = 0;
+										    i < UsageLength;
+										    ++i)
+										{
+											int32 ButtonIndex = Usage[i] - ButtonCaps->Range.UsageMin;
+											ButtonStates[ButtonIndex] = 1;
+
+											char OutputBuffer[256] = {};
+											sprintf_s(OutputBuffer,
+											          sizeof(OutputBuffer),
+											          "Button %d: %d", i, ButtonStates[i]);
+											OutputDebugStringA(OutputBuffer);
+										}
+
+
+										// NOTGE(Douglas): analog sticks
+										PHIDP_VALUE_CAPS ValueCaps = (PHIDP_VALUE_CAPS) HeapAlloc(HeapHandle,
+										                                                          0,
+										                                                          sizeof(HIDP_VALUE_CAPS) * Caps.NumberInputValueCaps);
+										USHORT ValueCapsLength = Caps.NumberInputValueCaps;
+										HidP_GetValueCaps(HidP_Input,
+										                  ValueCaps,
+										                  &ValueCapsLength,
+										                  PreparsedData);
+										for(uint32 i = 0;
+										    i < Caps.NumberInputValueCaps;
+										    ++i)
+										{
+											ULONG Value = 0;
+											HidP_GetUsageValue(HidP_Input,
+											                   ValueCaps[i].LinkUsagePage,
+											                   0,
+											                   ValueCaps[i].Range.UsageMin,
+											                   &Value,
+											                   PreparsedData,
+											                   (PCHAR)RawInputPointer->data.hid.bRawData,
+											                   RawInputPointer->data.hid.dwSizeHid);
+
+											HIDP_VALUE_CAPS vc = ValueCaps[i];
+											char OutputBuffer[2 * 1024] = {};
+											sprintf_s(OutputBuffer,
+											          sizeof(OutputBuffer),
+											          "UsageMin: %hu - UsageMax: %hu\n - DataIndexMin: %hu - DataIndexMax: %hu - Value: %lu\n\n\n",
+											          vc.Range.UsageMin,
+											          vc.Range.UsageMax,
+											          vc.Range.DataIndexMin,
+											          vc.Range.DataIndexMax,
+											          Value);
+											OutputDebugStringA(OutputBuffer);
+
+											switch(ValueCaps[i].Range.UsageMin)
+											{
+												// NOTE(Douglas): Valores do controle do Rafa (ver quais são os do meu, depois)
+												/*
+												case 0x30:
+												{
+														LONG LAxisX = (LONG)Value - 128;
+
+														r32 NormalizedX = 0;
+														if (LAxisX < 0)
+														{
+																NormalizedX = LAxisX / 128;
+														}
+														else
+														{
+																NormalizedX = LAxisX / 127;
+														}
+
+														GlobalInput.Controllers[1].LeftAxisX = NormalizedX;
+												} break;
+
+												case 0x31:
+												{
+														LONG LAxisY = (LONG)Value - 128;
+
+														r32 NormalizedY = 0;
+														if (LAxisY < 0)
+														{
+																NormalizedY = LAxisY / -128;
+														}
+														else
+														{
+																NormalizedY = LAxisY / -127;
+														}
+
+														GlobalInput.Controllers[1].LeftAxisY = NormalizedY;
+												} break;
+
+												case 53:
+												{
+														LONG RAxisX = (LONG)Value - 128;
+
+														r32 NormalizedX = 0;
+														if (RAxisX < 0)
+														{
+																NormalizedX = RAxisX / 128;
+														}
+														else
+														{
+																NormalizedX = RAxisX / 127;
+														}
+
+														GlobalInput.Controllers[1].RightAxisX = NormalizedX;
+												} break;
+
+												case 50:
+												{
+														LONG RAxisY = (LONG)Value - 128;
+
+														r32 NormalizedY = 0;
+														if (RAxisY < 0)
+														{
+																NormalizedY = RAxisY / -128;
+														}
+														else
+														{
+																NormalizedY = RAxisY / -127;
+														}
+
+														GlobalInput.Controllers[1].RightAxisY = NormalizedY;
+												} break;
+												*/
+											}
+										}
+									}
+									else
+									{
+										// NOTE(Douglas): Não conseguiu obter as capacidades do dispositivo
+										OutputDebugStringA("Não conseguiu obter as capacidades do dispositivo\n");
+									}
+								}
+								else
+								{
+									// NOTE(Douglas): "PreparsedData" não é grande o suficiente
+									OutputDebugStringA("\"PreparsedData\" não é grande o suficiente\n");
+								}
+							}
+							else
+							{
+								// NOTE(Douglas): "Preparsed data" foi zero
+							}
+						}
+						else
+						{
+							// NOTE(Douglas): Dispositivo não é um Joystick
+						}
+					}
+					else
+					{
+						// TODO(Douglas): "GetRawInputData" falhou
+					}
+					
+					HeapFree(HeapHandle, 0, RawInputPointer);
+				}
+			}
+			else
+			{
+				// TODO(Douglas): "GetRawInputData" falhou
+			}
 		} break;
 
 		case WM_SYSKEYDOWN:
@@ -374,6 +627,15 @@ WinMain(HINSTANCE Instance,
 					DispatchMessageA(&Message);
 				}
 
+				// NOTE(Douglas): Testando RawInput pra usar meu controle que não funciona com xinput
+				{
+
+
+				}
+
+				// NOTE(Douglas): Meu controle não funciona com "xinput", mas o código abaixo está 
+				// sem nenhum problema.
+
 				// TODO(Douglas): Deveríamos puxar essas informações com mais frequência?
 				for(DWORD ControllerIndex = 0;
 				    ControllerIndex < XUSER_MAX_COUNT;
@@ -401,26 +663,12 @@ WinMain(HINSTANCE Instance,
 						bool YButton = (Pad->wButtons & XINPUT_GAMEPAD_Y);
 						int16 StickX = Pad->sThumbLX;
 						int16 StickY = Pad->sThumbLY;
-
-						if(AButton)
-						{
-							GreenOffset += 2;
-						}
 					}
 					else
 					{
 						// NOTE(Douglas): Controle não está disponível
 					}
 				}
-
-				// NOTE(Douglas): Deixar isso até só até eu conseguir testar. Talvez eu passe esse código
-				// pro Rafa dar uma olhada pra mim e ver se o problema é no meu controle, porque acredito
-				// que meu código não tem nenhum problema. Deve ser meu controle de PS3 que não está
-				// sendo reconhecido e mapeado pelo "xinput" (sei lá).
-				XINPUT_VIBRATION Vibration;
-				Vibration.wLeftMotorSpeed = 60000;
-				Vibration.wRightMotorSpeed = 60000;
-				XInputSetState(0, &Vibration);
 
 				RenderWeirdGradient(&GlobalBackBuffer, BlueOffset, GreenOffset);
 
