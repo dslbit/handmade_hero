@@ -200,23 +200,27 @@ Win32MainWindowCallback(HWND Window,
 
 	switch(Message)
 	{
-		// NOTE(Douglas): Testando implementação do Raw Input
+		// NOTE(Douglas): Registrando o "RawInputDevice" para as mensagens ser mandadas pra
+		// "WM_INPUT".
+		/*
 		case WM_CREATE:
 		{
 			RAWINPUTDEVICE RawInputDevice;
 			RawInputDevice.usUsagePage = 1; // Generic Desktop Controls
-			RawInputDevice.usUsage = 4; // joystrick
-			RawInputDevice.dwFlags = RIDEV_INPUTSINK;
+			RawInputDevice.usUsage = 5; // joystrick (precisa ser 5, pois o meu controle é considerado "gamepad")
+			RawInputDevice.dwFlags = 0;
 			RawInputDevice.hwndTarget = Window;
 
 			assert(RegisterRawInputDevices(&RawInputDevice, 1, sizeof(RAWINPUTDEVICE)) != 0);
 		} break;
+		*/
 
 		case WM_ACTIVATEAPP:
 		{
 			OutputDebugStringA("WM_ACTIVATEAPP\n");
 		} break;
 
+		/*
 		case WM_INPUT:
 		{
 			uint32 BufferSize;
@@ -304,12 +308,11 @@ Win32MainWindowCallback(HWND Window,
 											char OutputBuffer[256] = {};
 											sprintf_s(OutputBuffer,
 											          sizeof(OutputBuffer),
-											          "Button %d: %d", i, ButtonStates[i]);
+											          "Button %d: %d\n", ButtonIndex, ButtonStates[ButtonIndex]);
 											OutputDebugStringA(OutputBuffer);
 										}
 
-
-										// NOTGE(Douglas): analog sticks
+										// NOTE(Douglas): analog sticks
 										PHIDP_VALUE_CAPS ValueCaps = (PHIDP_VALUE_CAPS) HeapAlloc(HeapHandle,
 										                                                          0,
 										                                                          sizeof(HIDP_VALUE_CAPS) * Caps.NumberInputValueCaps);
@@ -336,7 +339,7 @@ Win32MainWindowCallback(HWND Window,
 											char OutputBuffer[2 * 1024] = {};
 											sprintf_s(OutputBuffer,
 											          sizeof(OutputBuffer),
-											          "UsageMin: %hu - UsageMax: %hu\n - DataIndexMin: %hu - DataIndexMax: %hu - Value: %lu\n\n\n",
+											          "UsageMin: %hu - UsageMax: %hu | DataIndexMin: %hu - DataIndexMax: %hu | Value: %lu\n",
 											          vc.Range.UsageMin,
 											          vc.Range.UsageMax,
 											          vc.Range.DataIndexMin,
@@ -347,75 +350,75 @@ Win32MainWindowCallback(HWND Window,
 											switch(ValueCaps[i].Range.UsageMin)
 											{
 												// NOTE(Douglas): Valores do controle do Rafa (ver quais são os do meu, depois)
-												/*
-												case 0x30:
-												{
-														LONG LAxisX = (LONG)Value - 128;
+												
+												// case 0x30:
+												// {
+												// 		LONG LAxisX = (LONG)Value - 128;
 
-														r32 NormalizedX = 0;
-														if (LAxisX < 0)
-														{
-																NormalizedX = LAxisX / 128;
-														}
-														else
-														{
-																NormalizedX = LAxisX / 127;
-														}
+												// 		r32 NormalizedX = 0;
+												// 		if (LAxisX < 0)
+												// 		{
+												// 				NormalizedX = LAxisX / 128;
+												// 		}
+												// 		else
+												// 		{
+												// 				NormalizedX = LAxisX / 127;
+												// 		}
 
-														GlobalInput.Controllers[1].LeftAxisX = NormalizedX;
-												} break;
+												// 		GlobalInput.Controllers[1].LeftAxisX = NormalizedX;
+												// } break;
 
-												case 0x31:
-												{
-														LONG LAxisY = (LONG)Value - 128;
+												// case 0x31:
+												// {
+												// 		LONG LAxisY = (LONG)Value - 128;
 
-														r32 NormalizedY = 0;
-														if (LAxisY < 0)
-														{
-																NormalizedY = LAxisY / -128;
-														}
-														else
-														{
-																NormalizedY = LAxisY / -127;
-														}
+												// 		r32 NormalizedY = 0;
+												// 		if (LAxisY < 0)
+												// 		{
+												// 				NormalizedY = LAxisY / -128;
+												// 		}
+												// 		else
+												// 		{
+												// 				NormalizedY = LAxisY / -127;
+												// 		}
 
-														GlobalInput.Controllers[1].LeftAxisY = NormalizedY;
-												} break;
+												// 		GlobalInput.Controllers[1].LeftAxisY = NormalizedY;
+												// } break;
 
-												case 53:
-												{
-														LONG RAxisX = (LONG)Value - 128;
+												// case 53:
+												// {
+												// 		LONG RAxisX = (LONG)Value - 128;
 
-														r32 NormalizedX = 0;
-														if (RAxisX < 0)
-														{
-																NormalizedX = RAxisX / 128;
-														}
-														else
-														{
-																NormalizedX = RAxisX / 127;
-														}
+												// 		r32 NormalizedX = 0;
+												// 		if (RAxisX < 0)
+												// 		{
+												// 				NormalizedX = RAxisX / 128;
+												// 		}
+												// 		else
+												// 		{
+												// 				NormalizedX = RAxisX / 127;
+												// 		}
 
-														GlobalInput.Controllers[1].RightAxisX = NormalizedX;
-												} break;
+												// 		GlobalInput.Controllers[1].RightAxisX = NormalizedX;
+												// } break;
 
-												case 50:
-												{
-														LONG RAxisY = (LONG)Value - 128;
+												// case 50:
+												// {
+												// 		LONG RAxisY = (LONG)Value - 128;
 
-														r32 NormalizedY = 0;
-														if (RAxisY < 0)
-														{
-																NormalizedY = RAxisY / -128;
-														}
-														else
-														{
-																NormalizedY = RAxisY / -127;
-														}
+												// 		r32 NormalizedY = 0;
+												// 		if (RAxisY < 0)
+												// 		{
+												// 				NormalizedY = RAxisY / -128;
+												// 		}
+												// 		else
+												// 		{
+												// 				NormalizedY = RAxisY / -127;
+												// 		}
 
-														GlobalInput.Controllers[1].RightAxisY = NormalizedY;
-												} break;
-												*/
+												// 		GlobalInput.Controllers[1].RightAxisY = NormalizedY;
+												// } break;
+												
 											}
 										}
 									}
@@ -454,6 +457,7 @@ Win32MainWindowCallback(HWND Window,
 				// TODO(Douglas): "GetRawInputData" falhou
 			}
 		} break;
+		*/
 
 		case WM_SYSKEYDOWN:
 		case WM_SYSKEYUP:
@@ -627,15 +631,6 @@ WinMain(HINSTANCE Instance,
 					DispatchMessageA(&Message);
 				}
 
-				// NOTE(Douglas): Testando RawInput pra usar meu controle que não funciona com xinput
-				{
-
-
-				}
-
-				// NOTE(Douglas): Meu controle não funciona com "xinput", mas o código abaixo está 
-				// sem nenhum problema.
-
 				// TODO(Douglas): Deveríamos puxar essas informações com mais frequência?
 				for(DWORD ControllerIndex = 0;
 				    ControllerIndex < XUSER_MAX_COUNT;
@@ -658,11 +653,13 @@ WinMain(HINSTANCE Instance,
 						bool LeftShoulder = (Pad->wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER);
 						bool RightShoulder = (Pad->wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER);
 						bool AButton = (Pad->wButtons & XINPUT_GAMEPAD_A);
-						bool BBUtton = (Pad->wButtons & XINPUT_GAMEPAD_B);
+						bool BButton = (Pad->wButtons & XINPUT_GAMEPAD_B);
 						bool XButton = (Pad->wButtons & XINPUT_GAMEPAD_X);
 						bool YButton = (Pad->wButtons & XINPUT_GAMEPAD_Y);
 						int16 StickX = Pad->sThumbLX;
 						int16 StickY = Pad->sThumbLY;
+						BlueOffset += StickX / 10000;
+						GreenOffset += StickY / 10000;
 					}
 					else
 					{
