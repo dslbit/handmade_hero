@@ -1,6 +1,7 @@
 #include <windows.h>
 #include <hidsdi.h> // NOTE(Douglas): Para "Raw Input" do meu controle
 #include <xinput.h>
+#include <dsound.h>
 #include <stdio.h>
 #include <assert.h>
 #include <stdint.h>
@@ -34,6 +35,12 @@ struct win32_window_dimensions
 	int Height;
 };
 
+// TODO(Douglas): Por enquanto isso vai ser global. 
+global_variable bool GlobalRunning;
+global_variable win32_offscreen_buffer GlobalBackBuffer;
+
+
+
 // ~
 
 //
@@ -47,7 +54,7 @@ struct win32_window_dimensions
 typedef XINPUT_GET_STATE(xinput_get_state);
 XINPUT_GET_STATE(XInputGetStateStub)
 {
-	return(0);
+	return(ERROR_DEVICE_NOT_CONNECTED);
 }
 global_variable xinput_get_state *XInputGetState_ = XInputGetStateStub;
 #define XInputGetState XInputGetState_
@@ -57,7 +64,7 @@ global_variable xinput_get_state *XInputGetState_ = XInputGetStateStub;
 typedef XINPUT_SET_STATE(xinput_set_state);
 XINPUT_SET_STATE(XInputSetStateStub)
 {
-	return(0);
+	return(ERROR_DEVICE_NOT_CONNECTED);
 }
 global_variable xinput_set_state *XInputSetState_ = XInputSetStateStub;
 #define XInputSetState XInputSetState_
@@ -65,20 +72,128 @@ global_variable xinput_set_state *XInputSetState_ = XInputSetStateStub;
 internal void
 Win32LoadXInput(void)
 {
-	HMODULE XInputLibrary = LoadLibraryA("xinput1_3.dll");
+	HMODULE XInputLibrary = LoadLibraryA("xinput1_4.dll");
+	if(!XInputLibrary)
+	{
+		// TODO(Douglas): Diagnóstico
+		HMODULE XInputLibrary = LoadLibraryA("xinput1_3.dll");
+	}
 
 	if(XInputLibrary)
 	{
 		XInputGetState = (xinput_get_state *) GetProcAddress(XInputLibrary, "XInputGetState");
 		XInputSetState = (xinput_set_state *) GetProcAddress(XInputLibrary, "XInputSetState");
+
+		// TODO(Douglas): Diagnóstico
+	}
+	else
+	{
+		// TODO(Douglas): Diagnóstico
 	}
 }
 
 // ~
 
-// TODO(Douglas): Por enquanto isso vai ser global. 
-global_variable bool GlobalRunning;
-global_variable win32_offscreen_buffer GlobalBackBuffer;
+// ~
+
+// NOTE(Douglas): Carregando DirectSound manualmente, porque mesmo que o usuário
+// não tenha como escutar nada, ele ainda pode abrir o programa sem nenhum
+// problema.
+
+#define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPGUID lpGuid, LPDIRECTSOUND* ppDS, LPUNKNOWN  pUnkOuter)
+typedef DIRECT_SOUND_CREATE(direct_sound_create);
+
+
+internal void
+Win32InitDSound(HWND Window, int32 SamplesPerSecond, int32 BufferSize)
+{
+	// NOTE(Douglas): Carregar a biblioteca
+	HMODULE DSoundLibrary = LoadLibraryA("dsound.dll");
+	if(DSoundLibrary)
+	{
+		// NOTE(Douglas): Pegar um DirectSound Object
+		direct_sound_create *DirectSoundCreate = (direct_sound_create *) GetProcAddress(DSoundLibrary, "DirectSoundCreate");
+		
+		// NOTE(Douglas): Verificar se isso aqui funciona no WinXP - DirectSound8 ou 7??
+		LPDIRECTSOUND DirectSound;
+		if(DirectSoundCreate && SUCCEEDED(DirectSoundCreate(0, &DirectSound, 0)))
+		{
+			WAVEFORMATEX WaveFormat = {};
+			WaveFormat.wFormatTag = WAVE_FORMAT_PCM;
+			WaveFormat.nChannels = 2;
+			WaveFormat.nSamplesPerSec = SamplesPerSecond;
+			WaveFormat.wBitsPerSample = 16;
+			WaveFormat.nBlockAlign = (WaveFormat.nChannels * WaveFormat.wBitsPerSample) / 8;
+			WaveFormat.nAvgBytesPerSec = (WaveFormat.nSamplesPerSec * WaveFormat.nBlockAlign);
+			WaveFormat.cbSize = 0;
+
+			if(SUCCEEDED(DirectSound->SetCooperativeLevel(Window, DSSCL_PRIORITY)))
+			{
+				// NOTE(Douglas): Por algum motivo a convenção é limpar pra zero antes de usar...
+				DSBUFFERDESC BufferDescription = {};
+				BufferDescription.dwSize = sizeof(BufferDescription);
+				BufferDescription.dwFlags = DSBCAPS_PRIMARYBUFFER;
+
+				// NOTE(Douglas): Criar um bloco de memória primário (para configurar o modo, antes do D.S. ler)
+				// TODO(Douglas): DSBCAPS_GLOBALFOCUS?
+				LPDIRECTSOUNDBUFFER PrimaryBuffer;
+				if(SUCCEEDED(DirectSound->CreateSoundBuffer(&BufferDescription, &PrimaryBuffer, 0)))
+				{
+					HRESULT Error = PrimaryBuffer->SetFormat(&WaveFormat);
+					if(SUCCEEDED(Error))
+					{
+						// NOTE(Douglas): Agora nós finalmentes configuramos o formato!
+						OutputDebugStringA("Formato do buffer primario configurado!\n");
+					}
+					else
+					{
+						// TODO(Douglas): Diagnóstico
+					}
+				}
+				else
+				{
+					// TODO(Douglas): Diagnóstico
+				}
+			}
+			else
+			{
+				// TODO(Douglas): Diagnóstico
+			}
+			
+
+			// NOTE(Douglas): Criar um bloco de memória segundário (onde iremos escrever o som)
+			// TODO(Douglas): DSBCAPS_GETCURRENTPOSITION2 ?
+			DSBUFFERDESC BufferDescription = {};
+			BufferDescription.dwSize = sizeof(BufferDescription);
+			BufferDescription.dwFlags = 0;
+			BufferDescription.dwBufferBytes = BufferSize;
+			BufferDescription.lpwfxFormat = &WaveFormat;
+			LPDIRECTSOUNDBUFFER SecondaryBuffer;
+			HRESULT Error = DirectSound->CreateSoundBuffer(&BufferDescription, &SecondaryBuffer, 0);
+			if(SUCCEEDED(Error))
+			{
+				OutputDebugStringA("Buffer secundario criado com sucesso!\n");
+			}
+			else
+			{
+				// TODO(Douglas): Diagnóstico
+			}
+
+
+			// NOTE(Douglas): TOCAR!
+		}
+		else
+		{
+			// TODO(Douglas): Diagnóstico
+		}
+	}
+	else
+	{
+		// TODO(Douglas): Diagnóstico
+	}
+}
+
+// ~
 
 internal win32_window_dimensions
 Win32GetWindowDimension(HWND Window)
@@ -164,7 +279,7 @@ Win32ResizeDIBSection(win32_offscreen_buffer *Buffer, int Width, int Height)
 	// antigamente, era mais lento do que "BitBlt" nós não precisamos mais
 	// ter "DeviceContext" voando por ai.
 	int BitmapMemorySize = (Buffer->Width * Buffer->Height) * BytesPerPixel;
-	Buffer->Memory = VirtualAlloc(0, BitmapMemorySize, MEM_COMMIT, PAGE_READWRITE);
+	Buffer->Memory = VirtualAlloc(0, BitmapMemorySize, (MEM_RESERVE | MEM_COMMIT), PAGE_READWRITE);
 	Buffer->Pitch = Width * BytesPerPixel;
 	
 	// TODO(Douglas): Provavelmente é preciso limpar isso aqui pra preto.
@@ -542,6 +657,12 @@ Win32MainWindowCallback(HWND Window,
 					} break;
 				}
 			}
+
+			bool AltKeyWasDown = ((LParam & (1 << 29)) != 0);
+			if(VKCode == VK_F4 && AltKeyWasDown)
+			{
+				GlobalRunning = false;
+			}
 		} break;
 
 		case WM_PAINT:
@@ -614,6 +735,8 @@ WinMain(HINSTANCE Instance,
 			HDC DeviceContext = GetDC(Window);
 			int BlueOffset = 0;
 			int GreenOffset = 0;
+
+			Win32InitDSound(Window, 48000, 48000*sizeof(int16)*2);
 
 			GlobalRunning = true;
 			while(GlobalRunning)
