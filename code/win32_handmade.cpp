@@ -760,7 +760,7 @@ Win32FillSoundBuffer(win32_sound_output *SoundOutput, DWORD ByteToLock, DWORD By
 			int16 SampleValue = (int16) (SineValue * SoundOutput->ToneVolume);
 			*SampleOut++ = SampleValue;
 			*SampleOut++ = SampleValue;
-			SoundOutput->tSine += (2.0f * Pi32) * (1.0f / SoundOutput->WavePeriod);
+			SoundOutput->tSine += (2.0f * Pi32 * 1.0f) / (real32) SoundOutput->WavePeriod;
 			++SoundOutput->RunningSampleIndex;
 		}
 
@@ -777,7 +777,7 @@ Win32FillSoundBuffer(win32_sound_output *SoundOutput, DWORD ByteToLock, DWORD By
 			int16 SampleValue = (int16) (SineValue * SoundOutput->ToneVolume);
 			*SampleOut++ = SampleValue;
 			*SampleOut++ = SampleValue;
-			SoundOutput->tSine += (2.0f * Pi32) * (1.0f / SoundOutput->WavePeriod);
+			SoundOutput->tSine += (2.0f * Pi32 * 1.0f) / (real32) SoundOutput->WavePeriod;
 			++SoundOutput->RunningSampleIndex;
 		}
 
