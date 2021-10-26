@@ -17,9 +17,16 @@ struct game_offscreen_buffer
 {
 	// NOTE(Douglas): Pixels são sempre 32-bits, Ordem de memória: bb gg rr xx
 	void *Memory;
-	int Width;
-	int Height;
-	int Pitch;
+	int32 Width;
+	int32 Height;
+	int32 Pitch;
+};
+
+struct game_output_sound_buffer
+{
+  int32 SampleCount;
+  int32 SamplesPerSecond;
+  int16 *Samples;
 };
 
 // Esta função precisa de três coisas:
