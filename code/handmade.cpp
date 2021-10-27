@@ -48,12 +48,33 @@ RenderWeirdGradient(game_offscreen_buffer *Buffer, int BlueOffset, int GreenOffs
 }
 
 internal void
-GameUpdateAndRender(game_offscreen_buffer *Buffer,
-                    int BlueOffset,
-                    int GreenOffset,
-                    game_output_sound_buffer *SoundBuffer,
-                    int32 ToneHz)
+GameUpdateAndRender(game_input *Input,
+                    game_offscreen_buffer *Buffer,
+                    game_output_sound_buffer *SoundBuffer)
 {
+	local_persist int BlueOffset = 0;
+	local_persist int GreenOffset = 0;
+	local_persist int32 ToneHz = 256;
+
+	game_controller_input *Input0 = &Input->Controllers[0];
+	if(Input0->IsAnalog)
+	{
+		// NOTE(Douglas): Movimentação analógica
+		BlueOffset += (int) (4.0f * (Input0->EndX));
+		ToneHz = 256 + (int) (128.0f * (Input0->EndY));
+	}
+	else
+	{
+		// NOTE(Douglas): Movimentação digital
+	}
+
+	// Input.AButtonEndedDown;
+	// Input.AButtonHalfTransitionCount;
+	if(Input0->Down.EndedDown)
+	{
+		GreenOffset += 1;
+	}
+
   // TODO(Douglas): Permitir índices de amostras de som aqui, no futuro, para ter opções de plataformas robusta
   GameOutputSound(SoundBuffer, ToneHz);
 	RenderWeirdGradient(Buffer, BlueOffset, GreenOffset);
