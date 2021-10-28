@@ -1,5 +1,30 @@
 #if !defined(HANDMADE_H)
 
+/*
+	NOTE(Douglas):
+
+	HANDMADE_INTERNAL:
+		0 - Build para lançamento público
+		1 - Build apenas para desenvolvedor
+
+	HANDMADE_SLOW:
+		0 - Nenhum código lento permitido!
+		1 - Código lento é bem-vindo.
+*/
+
+// TODO(Douglas): Completar o macro "Assert"
+#if HANDMADE_SLOW
+	#define Assert(Expression) if(!(Expression)) { *(int *)0 = 0; }
+#else
+	#define Assert(Expression)
+#endif
+
+// TODO(Douglas): Essas coisas deveriam ser 64bits?
+#define Kilobytes(Value) ((Value) * 1024LL)
+#define Megabytes(Value) (Kilobytes(Value) * 1024LL)
+#define Gigabytes(Value) (Megabytes(Value) * 1024LL)
+#define Terabytes(Value) (Gigabytes(Value) * 1024LL)
+
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 
 // TODO(Douglas): Swap, min, max ... macros??
@@ -7,6 +32,7 @@
 //
 // NOTE(Douglas): Serviços que a plataforma fornece para o jogo
 //
+
 
 
 //
@@ -72,7 +98,26 @@ struct game_controller_input
 
 struct game_input
 {
+	// TODO(Douglas): Inserir o valor do clock aqui (Timers).
 	game_controller_input Controllers[4];
+};
+
+struct game_memory
+{
+	bool32 IsInitialized;
+	
+	uint64 PermanentStorageSize;
+	void *PermanentStorage; // NOTE(Douglas): é NECESSÁRIO ser limpada com zeros
+
+	uint64 TransientStorageSize;
+	void *TransientStorage; // NOTE(Douglas): é NECESSÁRIO ser limpada com zeros
+};
+
+struct game_state
+{
+	int32 GreenOffset;
+	int32 BlueOffset;
+	int32 ToneHz;
 };
 
 // Esta função precisa de três coisas:
@@ -80,7 +125,8 @@ struct game_input
 // - Entrada (controle e teclado)
 // - Buffer do Mapa de Bits (Bitmap) (para usar)
 // - Buffer de Áudio (para usar)
-internal void GameUpdateAndRender(game_input *Input,
+internal void GameUpdateAndRender(game_memory *Memory,
+                                  game_input *Input,
                                   game_offscreen_buffer *Buffer,
                                   game_output_sound_buffer *SoundBuffer);
 
