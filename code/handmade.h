@@ -27,11 +27,42 @@
 
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 
+inline uint32
+SafeTruncateUInt64(uint64 Value)
+{
+	uint32 Result;
+	// TODO(Douglas): "Defines" para valores máximos
+	Assert(Value <= 0xFFFFFFFF); // UInt32Max
+	Result = (uint32) Value;
+	return(Result);
+}
+
 // TODO(Douglas): Swap, min, max ... macros??
+
+
 
 //
 // NOTE(Douglas): Serviços que a plataforma fornece para o jogo
 //
+#if HANDMADE_INTERNAL
+
+/*
+	IMPORTANT(Douglas):
+
+	Isso não vai fazer nada no código do lançamento - eles estão bloqueando e
+	a escrita não é protegida contra perda de dados.
+*/
+
+struct debug_read_file_result
+{
+	uint32 ContentsSize;
+	void *Contents;
+};
+
+internal debug_read_file_result DEBUGPlatformReadEntireFile(char *FileName);
+internal void DEBUGPlatformFreeFileMemory(void *Memory);
+internal bool32 DEBUGPlatformWriteEntireFile(char *FileName, uint32 MemorySize, void *Memory);
+#endif
 
 
 

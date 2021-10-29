@@ -58,11 +58,21 @@ GameUpdateAndRender(game_memory *Memory,
 	game_state *GameState = (game_state *) Memory->PermanentStorage;
 	if(!Memory->IsInitialized)
 	{
+		char *FileName = __FILE__;
+		debug_read_file_result File = DEBUGPlatformReadEntireFile(FileName);
+		if(File.Contents)
+		{
+			DEBUGPlatformWriteEntireFile("test.txt", File.ContentsSize, File.Contents);
+			DEBUGPlatformFreeFileMemory(File.Contents);
+		}
+
 		GameState->ToneHz = 256;
 
 		// TODO(Douglas): Talvez seja mais apropriado fazer isso aqui na plataforma
 		Memory->IsInitialized = true;
 	}
+
+
 
 	game_controller_input *Input0 = &Input->Controllers[0];
 	if(Input0->IsAnalog)
