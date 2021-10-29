@@ -9,7 +9,7 @@ GameOutputSound(game_output_sound_buffer *SoundBuffer,
   int32 WavePeriod = SoundBuffer->SamplesPerSecond / ToneHz;
 
   int16 *SampleOut = SoundBuffer->Samples;
-  for(uint32 SampleIndex = 0;
+  for(int32 SampleIndex = 0;
       SampleIndex < SoundBuffer->SampleCount;
       ++SampleIndex)
   {
@@ -37,8 +37,8 @@ RenderWeirdGradient(game_offscreen_buffer *Buffer, int BlueOffset, int GreenOffs
 		    X++)
 		{
 			uint8 Red = 0;
-			uint8 Blue = (X + BlueOffset);
-			uint8 Green = (Y + GreenOffset);
+			uint8 Blue = (uint8) (X + BlueOffset);
+			uint8 Green = (uint8) (Y + GreenOffset);
 
 			*Pixel++ = (Red << 16) | (Green << 8) | Blue;
 		}
