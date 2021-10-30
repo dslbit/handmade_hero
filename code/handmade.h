@@ -19,7 +19,6 @@
 	#define Assert(Expression)
 #endif
 
-// TODO(Douglas): Essas coisas deveriam ser 64bits?
 #define Kilobytes(Value) ((Value) * 1024LL)
 #define Megabytes(Value) (Kilobytes(Value) * 1024LL)
 #define Gigabytes(Value) (Megabytes(Value) * 1024LL)
@@ -92,37 +91,41 @@ struct game_output_sound_buffer
 
 struct game_button_state
 {
-	int32 HalfTransitionCount;
+	int32 HalfTransitionCount; // NOTE(Douglas): Revisar isso
 	bool32 EndedDown;
 };
 
 struct game_controller_input
 {
+	bool32 IsConnected;
 	bool32 IsAnalog;
 
-	real32 StartX;
-	real32 StartY;
-
-	real32 MinX;
-	real32 MinY;
-
-	real32 MaxX;
-	real32 MaxY;
-
-	real32 EndX;
-	real32 EndY;
+	real32 StickAverageX;
+	real32 StickAverageY;
 
 	union
 	{
-		game_button_state Buttons[6];
+		game_button_state Buttons[12];
 		struct
 		{
-			game_button_state Up;
-			game_button_state Down;
-			game_button_state Left;
-			game_button_state Right;
+			game_button_state MoveUp;
+			game_button_state MoveDown;
+			game_button_state MoveLeft;
+			game_button_state MoveRight;
+
+			game_button_state ActionUp;
+			game_button_state ActionDown;
+			game_button_state ActionLeft;
+			game_button_state ActionRight;
+
 			game_button_state LeftShoulder;
 			game_button_state RightShoulder;
+
+			game_button_state Start;
+			game_button_state Back;
+
+			// NOTE(Douglas): Adicionar novos botões acima desse comentário
+			game_button_state Terminator;
 		};
 	};
 };
@@ -130,8 +133,14 @@ struct game_controller_input
 struct game_input
 {
 	// TODO(Douglas): Inserir o valor do clock aqui (Timers).
-	game_controller_input Controllers[4];
+	game_controller_input Controllers[5];
 };
+inline game_controller_input *GetController(game_input *Input, uint32 ControllerIndex)
+{
+	Assert(ControllerIndex < ArrayCount(Input->Controllers));
+	game_controller_input *Result = &Input->Controllers[ControllerIndex];
+	return(Result);
+}
 
 struct game_memory
 {

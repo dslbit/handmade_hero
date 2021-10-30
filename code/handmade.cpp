@@ -53,6 +53,8 @@ GameUpdateAndRender(game_memory *Memory,
                     game_offscreen_buffer *Buffer,
                     game_output_sound_buffer *SoundBuffer)
 {
+	Assert(ArrayCount(Input->Controllers[0].Buttons) == 
+	       (&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]));
 	Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
 
 	game_state *GameState = (game_state *) Memory->PermanentStorage;
@@ -73,24 +75,36 @@ GameUpdateAndRender(game_memory *Memory,
 	}
 
 
+	for(int ControllerIndex = 0;
+	    ControllerIndex < ArrayCount(Input->Controllers);
+	    ++ControllerIndex)
+	{
+		game_controller_input *Controller = GetController(Input, ControllerIndex);
+		if(Controller->IsAnalog)
+		{
+			// NOTE(Douglas): Movimentação analógica
+			GameState->BlueOffset += (int) (4.0f * (Controller->StickAverageX));
+			GameState->ToneHz = 256 + (int) (128.0f * (Controller->StickAverageY));
+		}
+		else
+		{
+			if(Controller->MoveLeft.EndedDown)
+			{
+				GameState->BlueOffset -= 3;
+			}
+			if(Controller->MoveRight.EndedDown)
+			{
+				GameState->BlueOffset += 3;
+			}
+			// NOTE(Douglas): Movimentação digital
+		}
 
-	game_controller_input *Input0 = &Input->Controllers[0];
-	if(Input0->IsAnalog)
-	{
-		// NOTE(Douglas): Movimentação analógica
-		GameState->BlueOffset += (int) (4.0f * (Input0->EndX));
-		GameState->ToneHz = 256 + (int) (128.0f * (Input0->EndY));
-	}
-	else
-	{
-		// NOTE(Douglas): Movimentação digital
-	}
-
-	// Input.AButtonEndedDown;
-	// Input.AButtonHalfTransitionCount;
-	if(Input0->Down.EndedDown)
-	{
-		GameState->GreenOffset += 1;
+		// Input.AButtonEndedDown;
+		// Input.AButtonHalfTransitionCount;
+		if(Controller->ActionDown.EndedDown)
+		{
+			//GameState->GreenOffset += 1;
+		}
 	}
 
   // TODO(Douglas): Permitir índices de amostras de som aqui, no futuro, para ter opções de plataformas robusta
