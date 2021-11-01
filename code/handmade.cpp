@@ -37,8 +37,8 @@ RenderWeirdGradient(game_offscreen_buffer *Buffer, int BlueOffset, int GreenOffs
 		    X++)
 		{
 			uint8 Red = 0;
-			uint8 Blue = (uint8) (X + BlueOffset);
-			uint8 Green = (uint8) (Y + GreenOffset);
+			uint8 Blue = 0;(uint8) (X + BlueOffset);
+			uint8 Green = 0;(uint8) (Y + GreenOffset);
 
 			*Pixel++ = (Red << 16) | (Green << 8) | Blue;
 		}
