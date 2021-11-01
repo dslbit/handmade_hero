@@ -56,6 +56,7 @@ typedef double real64;
 global_variable bool32 GlobalRunning;
 global_variable win32_offscreen_buffer GlobalBackBuffer; // Pixels
 global_variable LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer; // Áudio
+global_variable int64 GlobalPerfCountFrequency;
 
 
 
@@ -912,6 +913,22 @@ Win32ProcessXInputStickValue(SHORT Value, SHORT DeadZoneThreshold)
 	return(Result);
 }
 
+inline LARGE_INTEGER
+Win32GetWallClock(void)
+{
+	LARGE_INTEGER Result;
+	QueryPerformanceCounter(&Result);
+	return(Result);
+}
+
+inline real32
+Win32GetSecondsElapsed(LARGE_INTEGER Start, LARGE_INTEGER End)
+{
+	real32 Result = (real32) (End.QuadPart - Start.QuadPart) /
+	                (real32) GlobalPerfCountFrequency;
+	return(Result);
+}
+
 int WINAPI
 WinMain(HINSTANCE Instance,
 		HINSTANCE PrevInstance,
@@ -920,11 +937,21 @@ WinMain(HINSTANCE Instance,
 {
 	LARGE_INTEGER PerfCountFrequencyResult;
 	QueryPerformanceFrequency(&PerfCountFrequencyResult);
-	int64 PerfCountFrequency = PerfCountFrequencyResult.QuadPart;
+	GlobalPerfCountFrequency = PerfCountFrequencyResult.QuadPart;
+
+	// NOTE(Douglas): Configura a granularidade do "agendador" para 1ms
+	// para que o "Sleep()" possa ser mais preciso.
+	UINT DesiredSchedulerMS = 1;
+	bool32 SleepIsGranular = (timeBeginPeriod(DesiredSchedulerMS) == TIMERR_NOERROR);
 
 	Win32LoadXInput();
 
 	Win32ResizeDIBSection(&GlobalBackBuffer, 640, 480);
+
+	// TODO(Douglas): Como consultamos isso com segurança?
+	int MonitorRefreshHz = 60;
+	int GameUpdateHz = MonitorRefreshHz / 2;
+	real32 TargetSecondsPerFrame = 1.0f / (real32) GameUpdateHz;
 
 	WNDCLASSA WindowClass = {};
 	WindowClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC; // NOTE(Douglas): Flags de importância
@@ -996,8 +1023,8 @@ WinMain(HINSTANCE Instance,
 
 				GlobalRunning = true;
 
-				LARGE_INTEGER LastCounter;
-				QueryPerformanceCounter(&LastCounter);
+				LARGE_INTEGER LastCounter = Win32GetWallClock();
+
 				uint64 LastCycleCount = __rdtsc();
 
 				//
@@ -1160,6 +1187,8 @@ WinMain(HINSTANCE Instance,
 						// TODO(Douglas): Diagnóstico (não conseguiu pegar a posição do ponteiro de escrita do buffer)
 					}
 
+					// TODO(Douglas): Por enquanto o som está com problema porque nós não
+					// o atualizamos para ir com o novo frame do loop.
 					game_output_sound_buffer SoundBuffer = {};
 					SoundBuffer.SamplesPerSecond = SoundOutput.SamplesPerSecond;
 					SoundBuffer.SampleCount = BytesToWrite / SoundOutput.BytesPerSample;
@@ -1179,45 +1208,80 @@ WinMain(HINSTANCE Instance,
 						Win32FillSoundBuffer(&SoundOutput, ByteToLock, BytesToWrite, &SoundBuffer);
 					}
 
+					//
+					// NOTE(Douglas): Cronometragem
+					//
+					LARGE_INTEGER WorkCounter = Win32GetWallClock();
+					real32 WorkSecondsElapsed = Win32GetSecondsElapsed(LastCounter, WorkCounter);
+
+					// TODO(Douglas): Ainda não foi testado!! Provavelmente está bugado!!!!
+					real32 SecondsElapsedForFrame = WorkSecondsElapsed;
+					if(SecondsElapsedForFrame < TargetSecondsPerFrame)
+					{
+						/*real32 TestSecondsElapsedForFrame = Win32GetSecondsElapsed(LastCounter, Win32GetWallClock());
+						Assert(TestSecondsElapsedForFrame < TargetSecondsPerFrame);*/
+
+						while(SecondsElapsedForFrame < TargetSecondsPerFrame)
+						{
+							if(SleepIsGranular)
+							{
+								DWORD SleepMS = (DWORD) (1000.0f * (TargetSecondsPerFrame - SecondsElapsedForFrame));
+								if(SleepMS > 0)
+								{
+									Sleep(SleepMS);
+								}
+							}
+
+							SecondsElapsedForFrame = Win32GetSecondsElapsed(LastCounter,
+							                                                Win32GetWallClock());
+						}
+					}
+					else
+					{
+						// TODO(Douglas): MISSED FRAME RATE!
+						// TODO(Douglas): Diagnóstico (ultrapassou a taxa de atualização)
+					}
+					
+					// NOTE(Douglas): Exibindo o quadro depois de esperar o memonto certo
 					win32_window_dimensions Dimension = Win32GetWindowDimension(Window);
 					Win32DisplayBufferInWindow(DeviceContext, &GlobalBackBuffer, Dimension.Width, Dimension.Height);
 
 					//
-					// NOTE(Douglas): Cronometragem
+					// NOTE(Douglas): Trocando os estados dos controles
 					//
-					uint64 EndCycleCount = __rdtsc();
-					LARGE_INTEGER EndCounter;
-					QueryPerformanceCounter(&EndCounter);
+					game_input *InputTemp = NewInput;
+					NewInput = OldInput;
+					OldInput = InputTemp;
+					// TODO(Douglas): Deveríamos limpar isso aqui?
 
+					LARGE_INTEGER EndCounter = Win32GetWallClock();
+					real32 MSPerFrame = 1000.0f * Win32GetSecondsElapsed(LastCounter, EndCounter);
+					LastCounter = EndCounter;
+
+					uint64 EndCycleCount = __rdtsc();
 					uint64 CyclesElapsed = EndCycleCount - LastCycleCount;
+					LastCycleCount = EndCycleCount;
+
+	#if 1
+					//int64 CounterElapsed = EndCounter.QuadPart - LastCounter.QuadPart;
+
+					// CounterElapsed / GlobalPerfCountFrequency = segundos por frame
+					// ((1000.0f * (real32) CounterElapsed) / (real32) GlobalPerfCountFrequency);
+					real32 FPS = 0.0f;//(real32) GlobalPerfCountFrequency / (real32) CounterElapsed; // counts_per_second / counts_elapsed
 					real32 MegaCyclesPerFrame = (real32) CyclesElapsed / (1000.0f * 1000.0f);
-					int64 CounterElapsed = EndCounter.QuadPart - LastCounter.QuadPart;
-					real32 MSPerFrame = ((1000.0f * (real32) CounterElapsed) / (real32) PerfCountFrequency); // CounterElapsed / PerfCountFrequency = segundos por frame
-					real32 FPS = (real32) PerfCountFrequency / (real32) CounterElapsed; // counts_per_second / counts_elapsed
 					real32 CurrentCPUGhz = (FPS * MegaCyclesPerFrame) / 1000.0f;
 
-	#if 0
 					static uint64 DebugStringDelay = 0;
-					if(DebugStringDelay % 128 == 0)
+					if(DebugStringDelay % 64 == 0)
 					{
-						int8 Buffer[256];
-						sprintf((LPSTR) Buffer, "%.02f (ms/f) | %.02f (f/s) | %.02f (million instructions - MCPF) | %.02f Ghz\n", MSPerFrame, FPS, MegaCyclesPerFrame, CurrentCPUGhz);
-						OutputDebugStringA((LPSTR) Buffer);
+						char DebugBuffer[256];
+						sprintf_s(DebugBuffer, sizeof(DebugBuffer), "%.02f (ms/f) | %.02f (f/s) | %.02f (million instructions - MCPF) | %.02f Ghz\n", MSPerFrame, FPS, MegaCyclesPerFrame, CurrentCPUGhz);
+						OutputDebugStringA((LPSTR) DebugBuffer);
 					}
 					++DebugStringDelay;
 	#endif
 
-					LastCounter = EndCounter;
-					LastCycleCount = EndCycleCount;
-
-					//
-					// NOTE(Douglas): Trocando os estados dos controles
-					//
-					game_input *InputTemp;
-					InputTemp = NewInput;
-					NewInput = OldInput;
-					OldInput = InputTemp;
-					// TODO(Douglas): Deveríamos limpar isso aqui?
+					
 				}
 			}
 			else
