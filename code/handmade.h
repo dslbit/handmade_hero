@@ -167,8 +167,11 @@ struct game_state
 // - Buffer de Áudio (para usar)
 internal void GameUpdateAndRender(game_memory *Memory,
                                   game_input *Input,
-                                  game_offscreen_buffer *Buffer,
-                                  game_output_sound_buffer *SoundBuffer);
+                                  game_offscreen_buffer *Buffer);
+
+// NOTE(Douglas): No momento esta função precisa ser muito rápida, não pode ser mais de 1ms.
+// TODO(Douglas): Reduzir a pressão na performace dessa função (medindo ou pedindo informações, etc.).
+internal void GameGetSoundSamples(game_memory *Memory, game_output_sound_buffer *SoundBuffer);
 
 
 #define HANDMADE_H
