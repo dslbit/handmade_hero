@@ -12,6 +12,31 @@
 		1 - Código lento é bem-vindo.
 */
 
+#include <stdint.h>
+// TODO(Douglas): Implementar, nós mesmos, a função seno
+#include <math.h>
+
+#define Pi32 (3.14159265359f)
+
+#define internal 		static
+#define global_variable static
+#define local_persist 	static
+
+typedef int8_t int8;
+typedef int16_t int16;
+typedef int32_t int32;
+typedef int64_t int64;
+
+typedef int32_t bool32;
+
+typedef uint8_t uint8;
+typedef uint16_t uint16;
+typedef uint32_t uint32;
+typedef uint64_t uint64;
+
+typedef float real32;
+typedef double real64;
+
 // TODO(Douglas): Completar o macro "Assert"
 #if HANDMADE_SLOW
 	#define Assert(Expression) if(!(Expression)) { *(int *)0 = 0; }
@@ -58,10 +83,16 @@ struct debug_read_file_result
 	void *Contents;
 };
 
-internal debug_read_file_result DEBUGPlatformReadEntireFile(char *FileName);
-internal void DEBUGPlatformFreeFileMemory(void *Memory);
-internal bool32 DEBUGPlatformWriteEntireFile(char *FileName, uint32 MemorySize, void *Memory);
-#endif
+#define DEBUG_PLATFORM_FREE_FILE_MEMORY(name) void name(void *Memory)
+typedef DEBUG_PLATFORM_FREE_FILE_MEMORY(debug_platform_free_file_memory);
+
+#define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) debug_read_file_result name(char *FileName)
+typedef DEBUG_PLATFORM_READ_ENTIRE_FILE(debug_platform_read_entire_file);
+
+#define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(name) bool32 name(char *FileName, uint32 MemorySize, void *Memory)
+typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(debug_platform_write_entire_file);
+
+#endif //HANDMADE_INTERNAL
 
 
 
@@ -151,6 +182,10 @@ struct game_memory
 
 	uint64 TransientStorageSize;
 	void *TransientStorage; // NOTE(Douglas): é NECESSÁRIO ser limpada com zeros
+
+	debug_platform_read_entire_file *DEBUGPlatformReadEntireFile;
+	debug_platform_free_file_memory *DEBUGPlatformFreeFileMemory;
+	debug_platform_write_entire_file *DEBUGPlatformWriteEntireFile;
 };
 
 struct game_state
@@ -158,21 +193,22 @@ struct game_state
 	int32 GreenOffset;
 	int32 BlueOffset;
 	int32 ToneHz;
+	real32 tSine;
 };
 
-// Esta função precisa de três coisas:
-// - Cronometragem (timing)
-// - Entrada (controle e teclado)
-// - Buffer do Mapa de Bits (Bitmap) (para usar)
-// - Buffer de Áudio (para usar)
-internal void GameUpdateAndRender(game_memory *Memory,
-                                  game_input *Input,
-                                  game_offscreen_buffer *Buffer);
+#define GAME_UPDATE_AND_RENDER(name) void name(game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer)
+typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
+GAME_UPDATE_AND_RENDER(GameUpdateAndRenderStub)
+{
+}
 
 // NOTE(Douglas): No momento esta função precisa ser muito rápida, não pode ser mais de 1ms.
 // TODO(Douglas): Reduzir a pressão na performace dessa função (medindo ou pedindo informações, etc.).
-internal void GameGetSoundSamples(game_memory *Memory, game_output_sound_buffer *SoundBuffer);
-
+#define GAME_GET_SOUND_SAMPLES(name) void name(game_memory *Memory, game_output_sound_buffer *SoundBuffer)
+typedef GAME_GET_SOUND_SAMPLES(game_get_sound_samples);
+GAME_GET_SOUND_SAMPLES(GameGetSoundSamplesStub)
+{
+}
 
 #define HANDMADE_H
 #endif

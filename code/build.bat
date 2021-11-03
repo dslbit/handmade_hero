@@ -19,8 +19,8 @@ rem "-Fm" indica um local para guardar um arquivo ".map" que é uma lista de tud
 rem "-opt:ref" não coloca no executável o que não precisa
 rem "-Od" não otimiza e "deixa as coisas onde estão"
 
-set CommonCompilerFlags=-nologo -Gm- -GR- -MT -EHa- -Od -Oi -WX -W4 -wd4201 -wd4100 -wd4189 -DHANDMADE_INTERNAL=1 -DHANDMADE_SLOW=1 -FC -Z7 -Fmwin32_handmade.map
-set CommonLinkerFlags=-opt:ref user32.lib gdi32.lib hid.lib winmm.lib
+set CommonCompilerFlags=-nologo -Gm- -GR- -MT -EHa- -Od -Oi -WX -W4 -wd4201 -wd4100 -wd4189 -DHANDMADE_INTERNAL=1 -DHANDMADE_SLOW=1 -DHANDMADE_WIN32 -FC -Z7
+set CommonLinkerFlags=-incremental:no -opt:ref user32.lib gdi32.lib hid.lib winmm.lib
 
 if not exist ..\build mkdir ..\build
 pushd ..\build
@@ -30,7 +30,8 @@ rem 32-bit build
 rem cl %CommonCompilerFlags% ..\code\win32_handmade.cpp -link %CommonLinkerFlags% -subsystem:windows,5.01
 
 rem 64-bit build
-cl %CommonCompilerFlags% ..\code\win32_handmade.cpp -link %CommonLinkerFlags%
+cl %CommonCompilerFlags% -LD ..\code\handmade.cpp -Fmhandmade.map -link -DLL -EXPORT:GameUpdateAndRender -EXPORT:GameGetSoundSamples
+cl %CommonCompilerFlags% ..\code\win32_handmade.cpp -Fmwin32_handmade.map -link %CommonLinkerFlags%
 
 echo ---
 popd  
