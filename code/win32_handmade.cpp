@@ -144,25 +144,40 @@ DEBUG_PLATFORM_WRITE_ENTIRE_FILE(DEBUGPlatformWriteEntireFile)
 	return(Result);
 }
 
-struct win32_game_code
+inline FILETIME
+Win32GetLastWriteTime(char *Filename)
 {
-	HMODULE GameCodeDLL;
-	game_update_and_render *UpdateAndRender;
-	game_get_sound_samples *GetSoundSamples;
+	FILETIME LastWriteTime = {};
 
-	bool32 IsValid;
-};
+	WIN32_FIND_DATA FindData;
+	HANDLE FindHandle = FindFirstFileA(Filename, &FindData);
+	if(FindHandle != INVALID_HANDLE_VALUE)
+	{
+		LastWriteTime = FindData.ftLastWriteTime;
+		FindClose(FindHandle);
+	}
+	return(LastWriteTime);
+}
 
 internal win32_game_code
-Win32LoadGameCode(void)
+Win32LoadGameCode(char *SourceDLLName, char *TempDLLName)
 {
 	win32_game_code Result = {};
 
 	// TODO(Douglas): Precisa pegar o "caminho" apropriado
 	// TODO(Douglas): Determinar, automaticamente, quando atualização da dll é necessário
 
-	CopyFile("handmade.dll", "handmade_temp.dll", FALSE);
-	Result.GameCodeDLL = LoadLibraryA("handmade_temp.dll");
+	Result.DLLLastWriteTime = Win32GetLastWriteTime(SourceDLLName);
+
+	// NOTE(Douglas): "CopyFile" pode falhar, então esse loop, no momento é necessário (pelo menos pra debug)
+	while(1)
+	{
+		if(CopyFile(SourceDLLName, TempDLLName, FALSE)) break; // se o valor for diferente de zero, deu certo
+		if(GetLastError() == ERROR_FILE_NOT_FOUND) break;
+	}
+
+	CopyFile(SourceDLLName, TempDLLName, FALSE);
+	Result.GameCodeDLL = LoadLibraryA(TempDLLName);
 	if(Result.GameCodeDLL)
 	{
 		Result.UpdateAndRender = (game_update_and_render *) GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
@@ -185,6 +200,7 @@ Win32UnloadGameCode(win32_game_code *GameCode)
 	if(GameCode->GameCodeDLL)
 	{
 		FreeLibrary(GameCode->GameCodeDLL);
+		GameCode->GameCodeDLL = 0;
 	}
 
 	GameCode->IsValid = false;
@@ -1066,12 +1082,54 @@ Win32DebugSyncDisplay(win32_offscreen_buffer *BackBuffer,
 	}
 }
 
+internal void
+CatStrings(size_t SourceACount, char *SourceA,
+           size_t SourceBCount, char *SourceB,
+           size_t DestCount, char *Dest)
+{
+	// TODO(Douglas): Verificar o limite de "Dest"
+	for(int Index = 0; Index < SourceACount; ++Index)
+	{
+		*Dest++ = *SourceA++;
+	}
+
+	for(int Index = 0; Index < SourceBCount; ++Index)
+	{
+		*Dest++ = *SourceB++;
+	}
+
+	*Dest++ = 0;
+}
+
 int WINAPI
 WinMain(HINSTANCE Instance,
 		HINSTANCE PrevInstance,
 		LPSTR CommandLine,
 		int ShowCode)
 {
+	// NOTE(Douglas): Nunca usar "MAX_PATH" em código que será entregue para o cliente,
+	// porque pode ser perigoso e levar a maus resultados.
+	char EXEFileName[MAX_PATH];
+	DWORD SizeOfFileName = GetModuleFileNameA(0, EXEFileName, sizeof(EXEFileName));
+	char *OnePastLastSlash = EXEFileName;
+	for(char *Scan = EXEFileName; *Scan; ++Scan)
+	{
+		if(*Scan == '\\')
+		{
+			OnePastLastSlash = Scan + 1;
+		}
+	}
+	char SourceGameCodeDLLFilename[] = "handmade.dll";
+	char SourceGameCodeDLLFullPath[MAX_PATH];
+	CatStrings(OnePastLastSlash - EXEFileName, EXEFileName,
+	           sizeof(SourceGameCodeDLLFilename) - 1, SourceGameCodeDLLFilename,
+	           sizeof(SourceGameCodeDLLFullPath), SourceGameCodeDLLFullPath);
+	char TempGameCodeDLLFilename[] = "handmade_temp.dll";
+	char TempGameCodeDLLFullPath[MAX_PATH];
+	CatStrings(OnePastLastSlash - EXEFileName, EXEFileName,
+	           sizeof(TempGameCodeDLLFilename) - 1, TempGameCodeDLLFilename,
+	           sizeof(TempGameCodeDLLFullPath), TempGameCodeDLLFullPath);
+
 	LARGE_INTEGER PerfCountFrequencyResult;
 	QueryPerformanceFrequency(&PerfCountFrequencyResult);
 	GlobalPerfCountFrequency = PerfCountFrequencyResult.QuadPart;
@@ -1192,18 +1250,20 @@ WinMain(HINSTANCE Instance,
 
 				uint64 LastCycleCount = __rdtsc();
 
-				win32_game_code Game = Win32LoadGameCode();
-				uint32 LoadCounter = 0;
+				win32_game_code Game = Win32LoadGameCode(SourceGameCodeDLLFullPath,
+				                                         TempGameCodeDLLFullPath);
+
 				//
 				// NOTE(Douglas): Entrada, atualização e renderização
 				//
 				while(GlobalRunning)
 				{
-					if(LoadCounter++ > 120)
+					// TODO(Douglas): Por que isso não funciona pra mim?
+					FILETIME NewDLLWriteTime = Win32GetLastWriteTime(SourceGameCodeDLLFullPath);
+					if(CompareFileTime(&NewDLLWriteTime, &Game.DLLLastWriteTime) != 0)
 					{
 						Win32UnloadGameCode(&Game);
-						Game = Win32LoadGameCode();
-						LoadCounter = 0;
+						Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath);
 					}
 
 					game_controller_input *OldKeyboardController = GetController(OldInput, 0);

@@ -18,6 +18,7 @@ rem "-Gm-" desliga re-build mínima (nos ajuda já que queremos construir do zer
 rem "-Fm" indica um local para guardar um arquivo ".map" que é uma lista de tudo o que está no executável
 rem "-opt:ref" não coloca no executável o que não precisa
 rem "-Od" não otimiza e "deixa as coisas onde estão"
+rem "-PDB" renomeia o PDB (arquivo para o debugger usar)
 
 set CommonCompilerFlags=-nologo -Gm- -GR- -MT -EHa- -Od -Oi -WX -W4 -wd4201 -wd4100 -wd4189 -DHANDMADE_INTERNAL=1 -DHANDMADE_SLOW=1 -DHANDMADE_WIN32 -FC -Z7
 set CommonLinkerFlags=-incremental:no -opt:ref user32.lib gdi32.lib hid.lib winmm.lib
@@ -30,7 +31,10 @@ rem 32-bit build
 rem cl %CommonCompilerFlags% ..\code\win32_handmade.cpp -link %CommonLinkerFlags% -subsystem:windows,5.01
 
 rem 64-bit build
-cl %CommonCompilerFlags% -LD ..\code\handmade.cpp -Fmhandmade.map -link -DLL -EXPORT:GameUpdateAndRender -EXPORT:GameGetSoundSamples
+del *.pdb > NUL 2> NUL
+echo WAITING FOR PDB > lock.tmp
+cl %CommonCompilerFlags% -LD ..\code\handmade.cpp -Fmhandmade.map -link -incremental:no -opt:ref -PDB:handmade_%random%.pdb -DLL -EXPORT:GameUpdateAndRender -EXPORT:GameGetSoundSamples
+del lock.tmp
 cl %CommonCompilerFlags% ..\code\win32_handmade.cpp -Fmwin32_handmade.map -link %CommonLinkerFlags%
 
 echo ---

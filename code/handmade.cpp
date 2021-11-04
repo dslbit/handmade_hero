@@ -41,7 +41,7 @@ RenderWeirdGradient(game_offscreen_buffer *Buffer, int BlueOffset, int GreenOffs
 		    X < Buffer->Width;
 		    X++)
 		{
-			uint8 Red = (uint8) (X*Y/Buffer->Width);
+			uint8 Red = 0;//(uint8) (X*Y/Buffer->Width);
 			uint8 Blue = (uint8) (X + BlueOffset);
 			uint8 Green = (uint8) (Y + GreenOffset);
 
@@ -69,7 +69,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			Memory->DEBUGPlatformFreeFileMemory(File.Contents);
 		}
 
-		GameState->ToneHz = 256;
+		GameState->ToneHz = 512;
 		GameState->tSine = 0.0f;
 
 		// TODO(Douglas): Talvez seja mais apropriado fazer isso aqui na plataforma
@@ -119,13 +119,3 @@ extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
 	game_state *GameState = (game_state *) Memory->PermanentStorage;
 	GameOutputSound(SoundBuffer, GameState, GameState->ToneHz);
 }
-
-#if HANDMADE_WIN32
-#include <windows.h>
-BOOL WINAPI DllMain(HINSTANCE DllInstance,
-                    DWORD Reasion,
-                    LPVOID Reserved)
-{
-	return(TRUE);
-}
-#endif
