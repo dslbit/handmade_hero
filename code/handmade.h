@@ -110,6 +110,7 @@ struct game_offscreen_buffer
 	void *Memory;
 	int32 Width;
 	int32 Height;
+	int32 BytesPerPixel;
 	int32 Pitch;
 };
 
@@ -190,10 +191,15 @@ struct game_memory
 
 struct game_state
 {
+	int32 ToneHz;
 	int32 GreenOffset;
 	int32 BlueOffset;
-	int32 ToneHz;
+	
 	real32 tSine;
+	
+	int32 PlayerX;
+	int32 PlayerY;
+	real32 tJump;
 };
 
 #define GAME_UPDATE_AND_RENDER(name) void name(game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer)

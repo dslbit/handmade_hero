@@ -1,6 +1,14 @@
-*.txt
 build/
+data/
+misc/
+*.txt
 *.exe
+*.dll
+*.lib
+*.map
+*.exp
+*.suo
 *.pdb
 *.ilk
 *.obj
+*.sln
