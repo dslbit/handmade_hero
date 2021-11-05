@@ -204,17 +204,11 @@ struct game_state
 
 #define GAME_UPDATE_AND_RENDER(name) void name(game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer)
 typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
-GAME_UPDATE_AND_RENDER(GameUpdateAndRenderStub)
-{
-}
 
 // NOTE(Douglas): No momento esta função precisa ser muito rápida, não pode ser mais de 1ms.
 // TODO(Douglas): Reduzir a pressão na performace dessa função (medindo ou pedindo informações, etc.).
 #define GAME_GET_SOUND_SAMPLES(name) void name(game_memory *Memory, game_output_sound_buffer *SoundBuffer)
 typedef GAME_GET_SOUND_SAMPLES(game_get_sound_samples);
-GAME_GET_SOUND_SAMPLES(GameGetSoundSamplesStub)
-{
-}
 
 #define HANDMADE_H
 #endif

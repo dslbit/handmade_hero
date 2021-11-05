@@ -5,7 +5,7 @@ GameOutputSound(game_output_sound_buffer *SoundBuffer,
                 game_state *GameState,
                 int32 ToneHz)
 {
-  int16 ToneVolume = 3000;
+  int16 ToneVolume = 5000;
   int32 WavePeriod = SoundBuffer->SamplesPerSecond / ToneHz;
 
   int16 *SampleOut = SoundBuffer->Samples;
@@ -13,7 +13,7 @@ GameOutputSound(game_output_sound_buffer *SoundBuffer,
       SampleIndex < SoundBuffer->SampleCount;
       ++SampleIndex)
   {
-  	#if 0
+  	#if 1
     real32 SineValue = sinf(GameState->tSine);
     int16 SampleValue = (int16) (SineValue * ToneVolume);
     #else
@@ -121,7 +121,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		{
 			// NOTE(Douglas): Movimentação analógica
 			GameState->BlueOffset += (int) (4.0f * (Controller->StickAverageX));
-			GameState->ToneHz = 256 + (int) (128.0f * (Controller->StickAverageY));
+			GameState->ToneHz = 512 + (int) (256.0f * (Controller->StickAverageY));
 		}
 		else
 		{
@@ -136,8 +136,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			// NOTE(Douglas): Movimentação digital
 		}
 
-		GameState->PlayerX += (int) (4.0f * Controller->StickAverageX);
-		GameState->PlayerY -= (int) (4.0f * Controller->StickAverageY);
+		GameState->PlayerX += (int) (14.0f * Controller->StickAverageX);
+		GameState->PlayerY -= (int) (14.0f * Controller->StickAverageY);
 		if(GameState->tJump > 0)
 		{
 			GameState->PlayerY += (int) (5.0f * sinf(Pi32*GameState->tJump));
