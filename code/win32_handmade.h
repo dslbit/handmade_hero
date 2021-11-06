@@ -24,7 +24,6 @@ struct win32_sound_output
 	int BytesPerSample;
 	uint32 SecondaryBufferSize;
 	real32 tSine;
-	int LatencySampleCount;
 	uint32 SafetyBytes;
 	// TODO(Douglas): "RunningSampleIndex" também deveria ser em bytes?
 	// TODO(Douglas): A matemática ficaria mais simples se nós adicionassemos um campo "bytes per second"?
@@ -56,10 +55,20 @@ struct win32_game_code
 };
 
 #define WIN32_STATE_FILE_NAME_COUNT MAX_PATH
+
+struct win32_replay_buffer
+{
+	HANDLE FileHandle;
+	HANDLE MemoryMap;
+	char FileName[WIN32_STATE_FILE_NAME_COUNT];
+	void *MemoryBlock;
+};
+
 struct win32_state
 {
 	uint64 TotalSize;
 	void *GameMemoryBlock;
+	win32_replay_buffer ReplayBuffers[4];
 
 	HANDLE RecordingHandle;
 	int InputRecordingIndex;

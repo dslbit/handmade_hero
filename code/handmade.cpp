@@ -5,7 +5,7 @@ GameOutputSound(game_output_sound_buffer *SoundBuffer,
                 game_state *GameState,
                 int32 ToneHz)
 {
-  int16 ToneVolume = 5000;
+  int16 ToneVolume = 1000;
   int32 WavePeriod = SoundBuffer->SamplesPerSecond / ToneHz;
 
   int16 *SampleOut = SoundBuffer->Samples;
@@ -95,11 +95,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	if(!Memory->IsInitialized)
 	{
 		char *FileName = __FILE__;
-		debug_read_file_result File = Memory->DEBUGPlatformReadEntireFile(FileName);
+		debug_read_file_result File = Memory->DEBUGPlatformReadEntireFile(Thread, FileName);
 		if(File.Contents)
 		{
-			Memory->DEBUGPlatformWriteEntireFile("test.txt", File.ContentsSize, File.Contents);
-			Memory->DEBUGPlatformFreeFileMemory(File.Contents);
+			Memory->DEBUGPlatformWriteEntireFile(Thread, "test.txt", File.ContentsSize, File.Contents);
+			Memory->DEBUGPlatformFreeFileMemory(Thread, File.Contents);
 		}
 
 		GameState->ToneHz = 512;
@@ -157,6 +157,17 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
 	RenderWeirdGradient(Buffer, GameState->BlueOffset, GameState->GreenOffset);
 	RenderPlayer(Buffer, GameState->PlayerX, GameState->PlayerY);
+	RenderPlayer(Buffer, Input->MouseX, Input->MouseY);
+
+	for(int ButtonIndex = 0;
+	    ButtonIndex < ArrayCount(Input->MouseButtons);
+	    ++ButtonIndex)
+	{
+		if(Input->MouseButtons[ButtonIndex].EndedDown)
+		{
+			RenderPlayer(Buffer, 10 + 20*ButtonIndex, 10);
+		}
+	}
 }
 
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
