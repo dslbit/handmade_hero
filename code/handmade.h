@@ -175,6 +175,8 @@ struct game_input
 	
 	game_button_state MouseButtons[5];
 	int32 MouseX, MouseY, MouseZ;
+
+	real32 SecondsToAdvanceOverUpdate;
 };
 inline game_controller_input *GetController(game_input *Input, uint32 ControllerIndex)
 {
@@ -198,19 +200,6 @@ struct game_memory
 	debug_platform_write_entire_file *DEBUGPlatformWriteEntireFile;
 };
 
-struct game_state
-{
-	int32 ToneHz;
-	int32 GreenOffset;
-	int32 BlueOffset;
-	
-	real32 tSine;
-	
-	int32 PlayerX;
-	int32 PlayerY;
-	real32 tJump;
-};
-
 #define GAME_UPDATE_AND_RENDER(name) void name(thread_context *Thread, game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer)
 typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
 
@@ -218,6 +207,10 @@ typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
 // TODO(Douglas): Reduzir a pressão na performace dessa função (medindo ou pedindo informações, etc.).
 #define GAME_GET_SOUND_SAMPLES(name) void name(thread_context *Thread, game_memory *Memory, game_output_sound_buffer *SoundBuffer)
 typedef GAME_GET_SOUND_SAMPLES(game_get_sound_samples);
+
+struct game_state
+{
+};
 
 #define HANDMADE_H
 #endif

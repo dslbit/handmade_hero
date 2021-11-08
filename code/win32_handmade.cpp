@@ -1308,7 +1308,7 @@ WinMain(HINSTANCE Instance,
 
 	Win32LoadXInput();
 
-	Win32ResizeDIBSection(&GlobalBackBuffer, 1280, 720);
+	Win32ResizeDIBSection(&GlobalBackBuffer, 960, 540);
 
 	WNDCLASSA WindowClass = {};
 	WindowClass.style = CS_HREDRAW | CS_VREDRAW;
@@ -1435,6 +1435,7 @@ WinMain(HINSTANCE Instance,
 				game_input Input[2] = {};
 				game_input *NewInput = &Input[0];
 				game_input *OldInput = &Input[1];
+				NewInput->SecondsToAdvanceOverUpdate = TargetSecondsPerFrame;
 
 				int DebugTimeMarkerIndex = 0;
 				win32_debug_time_marker DebugTimeMarkers[30] = {};
