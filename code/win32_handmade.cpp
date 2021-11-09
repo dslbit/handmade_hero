@@ -1357,7 +1357,8 @@ WinMain(HINSTANCE Instance,
 			GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
 				
 			GlobalRunning = true;
-#if 0
+
+			#if 0
 			// NOTE(Douglas): Isso testa a frequencia de atualização do cursor de reprodução/escrita
 			// Na minha máquina também foi igual a do Casey: 480 samples.
 			while(GlobalRunning)
@@ -1370,7 +1371,7 @@ WinMain(HINSTANCE Instance,
 				          "PC: %u | WC: %u\n", PlayCursor, WriteCursor);
 				OutputDebugStringA(TextBuffer);
 			}
-#endif
+			#endif
 
 			// Juntar com o "VirtualAlloc" do Bitmap
 			int16 *Samples = (int16 *) VirtualAlloc(0, SoundOutput.SecondaryBufferSize,
@@ -1435,7 +1436,6 @@ WinMain(HINSTANCE Instance,
 				game_input Input[2] = {};
 				game_input *NewInput = &Input[0];
 				game_input *OldInput = &Input[1];
-				NewInput->SecondsToAdvanceOverUpdate = TargetSecondsPerFrame;
 
 				int DebugTimeMarkerIndex = 0;
 				win32_debug_time_marker DebugTimeMarkers[30] = {};
@@ -1457,6 +1457,8 @@ WinMain(HINSTANCE Instance,
 				//
 				while(GlobalRunning)
 				{
+					NewInput->dtForFrame = TargetSecondsPerFrame;
+
 					POINT MouseP;
 					GetCursorPos(&MouseP);
 					ScreenToClient(Window, &MouseP);
@@ -1715,7 +1717,8 @@ WinMain(HINSTANCE Instance,
 							Game.GetSoundSamples(&Thread, &GameMemory, &SoundBuffer);
 						}
 
-						#if HANDMADE_INTERNAL
+						#if 0
+						//#if HANDMADE_INTERNAL
 						
 						win32_debug_time_marker *Marker = &DebugTimeMarkers[DebugTimeMarkerIndex];
 						Marker->OutputPlayCursor = PlayCursor;
@@ -1805,7 +1808,9 @@ WinMain(HINSTANCE Instance,
 
 					FlipWallClock = Win32GetWallClock();
 
-#if HANDMADE_INTERNAL
+
+					#if 0
+					//#if HANDMADE_INTERNAL
 					// NOTE(Douglas): Esse código é pra Debug!!!
 					{
 
@@ -1819,7 +1824,7 @@ WinMain(HINSTANCE Instance,
 							Marker->FlipWriteCursor = DebugWriteCursor;
 						}
 					}
-#endif
+					#endif // HANDMADE_INTERNAL
 
 					//
 					// NOTE(Douglas): Trocando os estados dos controles
@@ -1833,7 +1838,7 @@ WinMain(HINSTANCE Instance,
 					uint64 CyclesElapsed = EndCycleCount - LastCycleCount;
 					LastCycleCount = EndCycleCount;
 
-	#if 1
+					#if 0
 					//int64 CounterElapsed = EndCounter.QuadPart - LastCounter.QuadPart;
 
 					// CounterElapsed / GlobalPerfCountFrequency = segundos por frame
@@ -1852,15 +1857,16 @@ WinMain(HINSTANCE Instance,
 						OutputDebugStringA((LPSTR) DebugBuffer);
 					}
 					++DebugStringDelay;
-	#endif
+					#endif
 
-#if HANDMADE_INTERNAL
+					#if 0
+					// #if HANDMADE_INTERNAL
 					++DebugTimeMarkerIndex;
 					if(DebugTimeMarkerIndex == ArrayCount(DebugTimeMarkers))
 					{
 						DebugTimeMarkerIndex = 0;
 					}
-#endif
+					#endif // HANDMADE_INTERNAL
 					}
 				}
 			}
@@ -1881,3 +1887,4 @@ WinMain(HINSTANCE Instance,
 
 	return(0);
 }
+
