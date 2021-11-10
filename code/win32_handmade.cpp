@@ -456,11 +456,19 @@ Win32DisplayBufferInWindow(HDC DeviceContext,
                            win32_offscreen_buffer *Buffer,
                            int Width, int Height)
 {
+	int XOffset = 10;
+	int YOffset = 10;
+	
+	PatBlt(DeviceContext, 0, 0, Width, YOffset, BLACKNESS);
+	PatBlt(DeviceContext, 0, YOffset + Buffer->Height, Width, Height, BLACKNESS);
+	PatBlt(DeviceContext, 0, 0, XOffset, Height, BLACKNESS);
+	PatBlt(DeviceContext, XOffset + Buffer->Width, 0, Width, Height, BLACKNESS);
+
 	// NOTE(Douglas): Para fins de protótipo, vamos "blitar" os pixels 1-para-1
 	// para ter a certeza que não introduziremos nenhum artefato com o esticamento
 	// enquanto estamos aprendendo a renderizar.
 	StretchDIBits(DeviceContext,
-	              0, 0, Buffer->Width, Buffer->Height,
+	              XOffset, YOffset, Buffer->Width, Buffer->Height,
 	              0, 0, Buffer->Width, Buffer->Height,
 	              Buffer->Memory,
 	              &Buffer->Info,
