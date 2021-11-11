@@ -53,8 +53,43 @@ inline game_controller_input *GetController(game_input *Input, uint32 Controller
 	return(Result);
 }
 
+//
+//
+//
+
+struct canonical_position
+{
+	int32 TileMapX;
+	int32 TileMapY;
+
+	int32 TileX;
+	int32 TileY;
+
+	// NOTE(Douglas): Valores (abaixo) relativos a um azulejo
+	// TODO(douglas): Esses valores ainda estão em pixels
+	real32 X;
+	real32 Y;
+};
+
+// TODO(douglas): será que isso é necessário?
+struct raw_position
+{
+	int32 TileMapX;
+	int32 TileMapY;
+
+	// NOTE(douglas): Valores (abaixo) relativos ao mapa de azulejos
+	real32 X;
+	real32 Y;
+};
+
 struct tile_map
 {
+	uint32 *Tiles;
+};
+
+struct world
+{
+	
 	int32 CountX;
 	int32 CountY;
 
@@ -63,18 +98,18 @@ struct tile_map
 	real32 TileWidth;
 	real32 TileHeight;
 
-	uint32 *Tiles;
-};
-
-struct world
-{
 	int32 TileMapCountX;
 	int32 TileMapCountY;
+	
 	tile_map *TileMaps;
 };
 
 struct game_state
 {
+	// TODO(douglas): isso deveria ser posições canonicas?
+	int32 PlayerTileMapX;
+	int32 PlayerTileMapY;
+
 	real32 PlayerX;
 	real32 PlayerY;
 };
