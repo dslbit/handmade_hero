@@ -59,14 +59,17 @@ inline game_controller_input *GetController(game_input *Input, uint32 Controller
 
 struct canonical_position
 {
+	// TODO(douglas): pegar os dois conjuntos abaixo e empacotar eles em um único valor
+	// de 32-bits onde há bits na parte mais insignificante que nos informa os índices
+	// dos azulejos, e na parte mais significante que nos informa a "pagina" (desses).
 	int32 TileMapX;
 	int32 TileMapY;
 
 	int32 TileX;
 	int32 TileY;
 
-	// NOTE(Douglas): Valores (abaixo) relativos a um azulejo
-	// TODO(douglas): Esses valores ainda estão em pixels
+	// TODO(douglas): Converter esses caras para representação de medidas do mundo real
+	// para facilitar os calculos matemáticos.
 	real32 X;
 	real32 Y;
 };
@@ -89,14 +92,14 @@ struct tile_map
 
 struct world
 {
+	real32 TileSideInMeters;
+	int32 TileSideInPixels;
 	
 	int32 CountX;
 	int32 CountY;
 
 	real32 UpperLeftX;
 	real32 UpperLeftY;
-	real32 TileWidth;
-	real32 TileHeight;
 
 	int32 TileMapCountX;
 	int32 TileMapCountY;
