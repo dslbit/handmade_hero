@@ -57,32 +57,27 @@ inline game_controller_input *GetController(game_input *Input, uint32 Controller
 //
 //
 
+// NOTE(douglas): Agora isso pode ser apenas "world_position"?
 struct canonical_position
 {
 	// TODO(douglas): pegar os dois conjuntos abaixo e empacotar eles em um único valor
 	// de 32-bits onde há bits na parte mais insignificante que nos informa os índices
 	// dos azulejos, e na parte mais significante que nos informa a "pagina" (desses).
+	#if 1
 	int32 TileMapX;
 	int32 TileMapY;
 
 	int32 TileX;
 	int32 TileY;
+	#else
+	uint32 _TileX;
+	uint32 _TileY;
+	#endif
 
-	// TODO(douglas): Converter esses caras para representação de medidas do mundo real
-	// para facilitar os calculos matemáticos.
-	real32 X;
-	real32 Y;
-};
-
-// TODO(douglas): será que isso é necessário?
-struct raw_position
-{
-	int32 TileMapX;
-	int32 TileMapY;
-
-	// NOTE(douglas): Valores (abaixo) relativos ao mapa de azulejos
-	real32 X;
-	real32 Y;
+	// TODO(douglas): Y deveria ser para cima.
+	// TODO(douglas): Essas medidas deveriam ser ajustadas do centro do azulejo?
+	real32 TileRelX;
+	real32 TileRelY;
 };
 
 struct tile_map
@@ -94,6 +89,7 @@ struct world
 {
 	real32 TileSideInMeters;
 	int32 TileSideInPixels;
+	real32 MetersToPixel;
 	
 	int32 CountX;
 	int32 CountY;
@@ -109,12 +105,7 @@ struct world
 
 struct game_state
 {
-	// TODO(douglas): isso deveria ser posições canonicas?
-	int32 PlayerTileMapX;
-	int32 PlayerTileMapY;
-
-	real32 PlayerX;
-	real32 PlayerY;
+	canonical_position PlayerP;
 };
 
 #define HANDMADE_H

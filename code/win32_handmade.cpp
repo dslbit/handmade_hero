@@ -923,6 +923,7 @@ Win32GetInputFileLocation(win32_state *State,
 internal win32_replay_buffer *
 Win32GetReplayBuffer(win32_state *State, uint32 Index)
 {
+	Assert(Index > 0);
 	Assert(Index < ArrayCount(State->ReplayBuffers));
 	win32_replay_buffer *Result = &State->ReplayBuffers[Index];
 	return(Result);
@@ -1399,8 +1400,11 @@ WinMain(HINSTANCE Instance,
 			GameMemory.DEBUGPlatformWriteEntireFile = DEBUGPlatformWriteEntireFile;
 			
 			// TODO(Douglas): Tratar vários tamanhos mínimos de memória dependendo das máquina do usuário
+			
 			// TODO(Douglas): Usar MEM_LARGE_PAGES e chamar "adjust token privileges" quando não
 			// estiver no WinXP?
+
+			// TODO(Douglas): "TransientStorage" precisa ser quebrado em "game transient" e "cache trasient".
 			Win32State.TotalSize = GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
 			Win32State.GameMemoryBlock = VirtualAlloc(BaseAddress, (size_t)Win32State.TotalSize,
 			                                          (MEM_RESERVE | MEM_COMMIT), PAGE_READWRITE);
@@ -1411,7 +1415,7 @@ WinMain(HINSTANCE Instance,
 			GameMemory.TransientStorage = (uint8 *)GameMemory.PermanentStorage + GameMemory.PermanentStorageSize;
 
 			// NOTE(Douglas): Somente para teste de build interna
-			for(int ReplayIndex = 0;
+			for(int ReplayIndex = 1;
 			    ReplayIndex < ArrayCount(Win32State.ReplayBuffers);
 			    ++ReplayIndex)
 			{
