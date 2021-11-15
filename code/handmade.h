@@ -57,55 +57,54 @@ inline game_controller_input *GetController(game_input *Input, uint32 Controller
 //
 //
 
+struct tile_chunk_position
+{
+	uint32 TileChunkX;
+	uint32 TileChunkY;
+
+	uint32 RelTileX;
+	uint32 RelTileY;
+};
+
 // NOTE(douglas): Agora isso pode ser apenas "world_position"?
-struct canonical_position
+struct world_position
 {
 	// TODO(douglas): pegar os dois conjuntos abaixo e empacotar eles em um único valor
 	// de 32-bits onde há bits na parte mais insignificante que nos informa os índices
 	// dos azulejos, e na parte mais significante que nos informa a "pagina" (desses).
-	#if 1
-	int32 TileMapX;
-	int32 TileMapY;
+	uint32 AbsTileX;
+	uint32 AbsTileY;
 
-	int32 TileX;
-	int32 TileY;
-	#else
-	uint32 _TileX;
-	uint32 _TileY;
-	#endif
-
-	// TODO(douglas): Y deveria ser para cima.
 	// TODO(douglas): Essas medidas deveriam ser ajustadas do centro do azulejo?
+	// TODO(douglas): renomear para "offset" X e Y
 	real32 TileRelX;
 	real32 TileRelY;
 };
 
-struct tile_map
+struct tile_chunk
 {
 	uint32 *Tiles;
 };
 
 struct world
 {
+	uint32 ChunkShift;
+	uint32 ChunkMask;
+	uint32 ChunkDim;
+
 	real32 TileSideInMeters;
 	int32 TileSideInPixels;
 	real32 MetersToPixel;
-	
-	int32 CountX;
-	int32 CountY;
 
-	real32 UpperLeftX;
-	real32 UpperLeftY;
-
-	int32 TileMapCountX;
-	int32 TileMapCountY;
+	int32 TileChunkCountX;
+	int32 TileChunkCountY;
 	
-	tile_map *TileMaps;
+	tile_chunk *TileChunks;
 };
 
 struct game_state
 {
-	canonical_position PlayerP;
+	world_position PlayerP;
 };
 
 #define HANDMADE_H
