@@ -20,9 +20,9 @@ rem "-Fm" indica um local para guardar um arquivo ".map" que é uma lista de tud
 rem "-opt:ref" não coloca no executável o que não precisa
 rem "-Od" não otimiza e "deixa as coisas onde estão"
 rem "-PDB" renomeia o PDB (arquivo para o debugger usar)
-rem "-O2 -Oi -fp:fast" otimização
+rem "-O2" otimização
 
-set CommonCompilerFlags=-nologo -MTd -Gm- -GR- -EHa- -Od -Oi -WX -W4 -wd4201 -wd4100 -wd4189 -wd4505 -DHANDMADE_INTERNAL=1 -DHANDMADE_SLOW=1 -DHANDMADE_WIN32 -FC -Z7
+set CommonCompilerFlags=-nologo -MTd -Gm- -GR- -EHa- -Od -Oi -fp:fast -WX -W4 -wd4201 -wd4100 -wd4189 -wd4505 -DHANDMADE_INTERNAL=1 -DHANDMADE_SLOW=1 -DHANDMADE_WIN32 -FC -Z7
 set CommonLinkerFlags=-incremental:no -opt:ref user32.lib gdi32.lib hid.lib winmm.lib
 
 if not exist ..\build mkdir ..\build
