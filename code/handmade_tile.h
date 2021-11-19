@@ -7,6 +7,7 @@ struct tile_map_position
 	// índices dos azulejos dentro do chunk.
 	uint32 AbsTileX;
 	uint32 AbsTileY;
+	uint32 AbsTileZ;
 
 	// TODO(douglas): renomear para "offset" X e Y
 	real32 TileRelX;
@@ -18,6 +19,7 @@ struct tile_chunk_position
 {
 	uint32 TileChunkX;
 	uint32 TileChunkY;
+	uint32 TileChunkZ;
 
 	uint32 RelTileX;
 	uint32 RelTileY;
@@ -35,12 +37,13 @@ struct tile_map
 	uint32 ChunkDim;
 
 	real32 TileSideInMeters;
-	int32 TileSideInPixels;
-	real32 MetersToPixel;
 
 	uint32 TileChunkCountX;
 	uint32 TileChunkCountY;
-	
+	uint32 TileChunkCountZ;
+
+	// TODO: Fazer um armazenamento esparso melhor, para que qualquer lugar no mundo
+	// possa ser representado sem precisar do conjunto de ponteiros em "tile_chunk".
 	tile_chunk *TileChunks;
 };
 
