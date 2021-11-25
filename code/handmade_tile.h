@@ -9,9 +9,9 @@ struct tile_map_position
 	uint32 AbsTileY;
 	uint32 AbsTileZ;
 
-	// TODO(douglas): renomear para "offset" X e Y
-	real32 TileRelX;
-	real32 TileRelY;
+	// NOTE: São ajustes, do centro do azulejo
+	real32 OffsetX;
+	real32 OffsetY;
 };
 
 

@@ -1,39 +1,5 @@
 #include "handmade_tile.h"
 
-inline void
-RecanonicalizeCoord(tile_map *TileMap,
-                    uint32 *Tile,
-                    real32 *TileRel)
-{
-	//
-	// TODO(douglas): Precisamos de uma solução melhor do que dividir/multiplicar para
-	// o método abaixo, porque o método atual pode arredondar o valor para o azulejo
-	// anterior (do que está no momento).
-	//
-
-	// NOTE(Douglas): Talvez não precisamos verificar se o jogador cruzou o limite máximo
-	// do mundo, assim ele vai aparecer do lado oposto do mundo.
-	int32 Offset = RoundReal32ToInt32(*TileRel / TileMap->TileSideInMeters);
-	*Tile += Offset;
-	*TileRel -= Offset * TileMap->TileSideInMeters;
-
-	// TODO(douglas): Arrumar o calculo com ponto flutuante.
-	Assert(*TileRel >= -0.5f * TileMap->TileSideInMeters);	
-	Assert(*TileRel <= 0.5f * TileMap->TileSideInMeters);
-}
-
-inline tile_map_position
-RecanonicalizePosition(tile_map *TileMap,
-                       tile_map_position Pos)
-{
-	tile_map_position Result = Pos;
-
-	RecanonicalizeCoord(TileMap, &Result.AbsTileX, &Result.TileRelX);
-	RecanonicalizeCoord(TileMap, &Result.AbsTileY, &Result.TileRelY);
-
-	return(Result);
-}
-
 inline tile_chunk *
 GetTileChunk(tile_map *TileMap,
              uint32 TileChunkX,
@@ -142,12 +108,22 @@ GetTileValue(tile_map *TileMap,
 	return(TileChunkValue);
 }
 
-inline uint32
-IsWorldPointEmpty(tile_map *TileMap,
-                  tile_map_position CanPos)
+internal uint32
+GetTileValue(tile_map *TileMap,
+             tile_map_position Pos)
 {
- 	uint32 TileChunkValue = GetTileValue(TileMap, CanPos.AbsTileX, CanPos.AbsTileY, CanPos.AbsTileZ);
-	bool32 Empty = (TileChunkValue == 1);
+	uint32 TileChunkValue = GetTileValue(TileMap, Pos.AbsTileX, Pos.AbsTileY, Pos.AbsTileZ);
+	return(TileChunkValue);
+}
+
+inline uint32
+IsTileMapPointEmpty(tile_map *TileMap,
+                  tile_map_position Pos)
+{
+ 	uint32 TileChunkValue = GetTileValue(TileMap, Pos);
+	bool32 Empty = (TileChunkValue == 1 ||
+	                TileChunkValue == 3 ||
+	                TileChunkValue == 4);
 	
 	return(Empty);
 }
@@ -179,4 +155,53 @@ SetTileValue(memory_arena *Arena,
 	}
 	
 	SetTileValue(TileMap, TileChunk, ChunkPos.RelTileX, ChunkPos.RelTileY, TileValue);
+}
+
+
+//
+// TODO: Essas funções realmente pertecem a um arquivo de "posicionamento" ou "geometria"?
+//
+
+inline void
+RecanonicalizeCoord(tile_map *TileMap,
+                    uint32 *Tile,
+                    real32 *TileRel)
+{
+	//
+	// TODO(douglas): Precisamos de uma solução melhor do que dividir/multiplicar para
+	// o método abaixo, porque o método atual pode arredondar o valor para o azulejo
+	// anterior (do que está no momento).
+	//
+
+	// NOTE(Douglas): Talvez não precisamos verificar se o jogador cruzou o limite máximo
+	// do mundo, assim ele vai aparecer do lado oposto do mundo.
+	int32 Offset = RoundReal32ToInt32(*TileRel / TileMap->TileSideInMeters);
+	*Tile += Offset;
+	*TileRel -= Offset * TileMap->TileSideInMeters;
+
+	// TODO(douglas): Arrumar o calculo com ponto flutuante.
+	Assert(*TileRel >= -0.5f * TileMap->TileSideInMeters);	
+	Assert(*TileRel <= 0.5f * TileMap->TileSideInMeters);
+}
+
+inline tile_map_position
+RecanonicalizePosition(tile_map *TileMap,
+                       tile_map_position Pos)
+{
+	tile_map_position Result = Pos;
+
+	RecanonicalizeCoord(TileMap, &Result.AbsTileX, &Result.OffsetX);
+	RecanonicalizeCoord(TileMap, &Result.AbsTileY, &Result.OffsetY);
+
+	return(Result);
+}
+
+inline bool32
+AreOnSameTile(tile_map_position *A,
+              tile_map_position *B)
+{
+	bool32 Result = (A->AbsTileX == B->AbsTileX &&
+	                 A->AbsTileY == B->AbsTileY &&
+	                 A->AbsTileZ == B->AbsTileZ);
+	return(Result);
 }
