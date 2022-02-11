@@ -117,13 +117,18 @@ struct bitmap_header
 	int32 VertResolution;
 	uint32 ColorsUsed;
 	uint32 ColorsImportant;
+
 	uint32 RedMask;
 	uint32 GreenMask;
 	uint32 BlueMask;
 };
 #pragma pack(pop)
 
-// NOTE(Douglas): Ordem dos bytes vindo da memória dos BMPs: AA BB GG RR (0xRR GG BB AA), de baixo para cima
+//
+// NOTE(Douglas): A ordem dos bits vindo da memória é determinada pelo cabeçalho,
+// então é preciso ler os bits de cada componente (Masks/RGB) e converter os pixels
+// manualmente.
+
 // NOTE(Douglas): Lembre-se de que esse código pra carregar BMPs não está completo,
 // ainda falta muitas coisas para considerar (principalmente se o BMP não estiver
 // indo de baixo para cima, mas ao contrário).
@@ -142,7 +147,24 @@ DEBUGLoadBMP(thread_context *Thread,
 		Result.Pixels = Pixels;
 		Result.Width = Header->Width;
 		Result.Height = Header->Height;
+
+		Assert(Header->Compression == 3);
 		
+		uint32 RedMask = Header->RedMask;
+		uint32 GreenMask = Header->GreenMask;
+		uint32 BlueMask = Header->BlueMask;
+		uint32 AlphaMask = ~(RedMask | GreenMask | BlueMask);
+
+		bit_scan_result RedShift = FindLeastSignificantSetBit(RedMask);
+		bit_scan_result GreenShift = FindLeastSignificantSetBit(GreenMask);
+		bit_scan_result BlueShift = FindLeastSignificantSetBit(BlueMask);
+		bit_scan_result AlphaShift = FindLeastSignificantSetBit(AlphaMask);
+
+		Assert(RedShift.Found);
+		Assert(GreenShift.Found);
+		Assert(BlueShift.Found);
+		Assert(AlphaShift.Found);
+
 		uint32 *SourceDest = Pixels;
 		for(int32 Y = 0;
 		    Y < Header->Height;
@@ -152,8 +174,11 @@ DEBUGLoadBMP(thread_context *Thread,
 			    X < Header->Width;
 			    X++)
 			{
-				*SourceDest = (*SourceDest >> 8) | (*SourceDest << 24);
-				++SourceDest;
+				uint32 C = *SourceDest;
+				*SourceDest++ = ((((C >> AlphaShift.Index) & 0xFF) << 24) |
+				                 (((C >> RedShift.Index) & 0xFF) << 16) |
+				                 (((C >> GreenShift.Index) & 0xFF) << 8) |
+				                 (((C >> BlueShift.Index) & 0xFF) << 0));
 			}
 		}
 	}
@@ -206,7 +231,36 @@ DrawBitmap(game_offscreen_buffer *Buffer,
 		    X < MaxX;
 		    ++X)
 		{
-			*Dest++ = *Source++;
+			real32 A = (real32)((*Source >> 24) & 0xFF) / 255.0f;
+			real32 SR = (real32) ((*Source >> 16) & 0xFF);
+			real32 SG = (real32) ((*Source >> 8) & 0xFF);
+			real32 SB = (real32) ((*Source >> 0) & 0xFF);
+
+			real32 DR = (real32)((*Dest >> 16) & 0xFF);
+			real32 DG = (real32)((*Dest >> 8) & 0xFF);
+			real32 DB = (real32)((*Dest >> 0) & 0xFF);
+
+			// NOTE: Esse é um procedimento direto de mesclagem linear.
+			// TODO: Premultiplied alpha?!
+			real32 R = (1.0f - A)*DR + A*SR;
+			real32 G = (1.0f - A)*DG + A*SG;
+			real32 B = (1.0f - A)*DB + A*SB;
+
+			*Dest = ((uint32)(R + 0.5f) << 16 |
+			         (uint32)(G + 0.5f) << 8 |
+			         (uint32)(B + 0.5f) << 0);
+
+			// NOTE: Se o componente Alpha for maior do que 128, copie o pixel,
+			// do contrário não copie o pixel. Esta operação é chamada "Alpha Test".
+			/*
+			if((*Source >> 24) > 128)
+			{
+				*Dest = *Source;
+			}
+			*/
+
+			Dest++;
+			Source++;
 		}
 
 		DestRow += Buffer->Pitch;
@@ -555,14 +609,16 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	real32 PlayerLeft = ScreenCenterX - (0.5f * PlayerWidth * MetersToPixel);
 	real32 PlayerTop = ScreenCenterY - PlayerHeight * MetersToPixel;
 
-	#if 0
+	#if 1
+	
+	#else
+	
+	#endif
 	DrawRectangle(Buffer, PlayerLeft, PlayerTop,
 	              PlayerLeft + PlayerWidth * MetersToPixel,
 	              PlayerTop + PlayerHeight * MetersToPixel,
 	              PlayerR, PlayerG, PlayerB);
-	#else
 	DrawBitmap(Buffer, &GameState->HeroHead, PlayerLeft, PlayerTop);
-	#endif
 }
 
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
