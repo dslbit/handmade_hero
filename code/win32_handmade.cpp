@@ -14,7 +14,7 @@
 // - Aceleração de Hardware (OpenGL ou Direct3D ou Ambos???)
 // - GetKeyboardLayout (suporte para teclados francêses, suporte internacional para WASD)
 
-#include "handmade.h"
+#include "handmade_platform.h"
 #include <windows.h>
 #include <hidsdi.h> // NOTE(Douglas): Para "Raw Input" do meu controle
 #include <xinput.h>
@@ -224,35 +224,36 @@ Win32GetLastWriteTime(char *Filename)
 }
 
 internal win32_game_code
-Win32LoadGameCode(char *SourceDLLName, char *TempDLLName)
+Win32LoadGameCode(char *SourceDLLName, char *TempDLLName, char *LockFileName)
 {
 	win32_game_code Result = {};
 
-	// TODO(Douglas): Precisa pegar o "caminho" apropriado
-	// TODO(Douglas): Determinar, automaticamente, quando atualização da dll é necessário
-
-	Result.DLLLastWriteTime = Win32GetLastWriteTime(SourceDLLName);
-
-	// NOTE(Douglas): "CopyFile" pode falhar, então esse loop, no momento é necessário (pelo menos pra debug)
-	while(1)
+	WIN32_FILE_ATTRIBUTE_DATA Ignored;
+	if(!GetFileAttributesEx(LockFileName, GetFileExInfoStandard, &Ignored))
 	{
-		if(CopyFile(SourceDLLName, TempDLLName, FALSE)) break; // se o valor for diferente de zero, deu certo
-		if(GetLastError() == ERROR_FILE_NOT_FOUND) break;
-	}
+		Result.DLLLastWriteTime = Win32GetLastWriteTime(SourceDLLName);
 
-	CopyFile(SourceDLLName, TempDLLName, FALSE);
-	Result.GameCodeDLL = LoadLibraryA(TempDLLName);
-	if(Result.GameCodeDLL)
-	{
-		Result.UpdateAndRender = (game_update_and_render *) GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
-		Result.GetSoundSamples = (game_get_sound_samples *) GetProcAddress(Result.GameCodeDLL, "GameGetSoundSamples");
-		Result.IsValid = (Result.UpdateAndRender && Result.GetSoundSamples);
-	}
+		// NOTE(Douglas): "CopyFile" pode falhar, então esse loop, no momento é necessário (pelo menos pra debug)
+		while(1)
+		{
+			if(CopyFile(SourceDLLName, TempDLLName, FALSE)) break; // se o valor for diferente de zero, deu certo
+			if(GetLastError() == ERROR_FILE_NOT_FOUND) break;
+		}
 
-	if(!Result.IsValid)
-	{
-		Result.UpdateAndRender = 0;
-		Result.GetSoundSamples = 0;
+		CopyFile(SourceDLLName, TempDLLName, FALSE);
+		Result.GameCodeDLL = LoadLibraryA(TempDLLName);
+		if(Result.GameCodeDLL)
+		{
+			Result.UpdateAndRender = (game_update_and_render *) GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
+			Result.GetSoundSamples = (game_get_sound_samples *) GetProcAddress(Result.GameCodeDLL, "GameGetSoundSamples");
+			Result.IsValid = (Result.UpdateAndRender && Result.GetSoundSamples);
+		}
+
+		if(!Result.IsValid)
+		{
+			Result.UpdateAndRender = 0;
+			Result.GetSoundSamples = 0;
+		}
 	}
 
 	return(Result);
@@ -1306,6 +1307,10 @@ WinMain(HINSTANCE Instance,
 	Win32BuildEXEPathFileName(&Win32State, "handmade_temp.dll",
 	                          sizeof(TempGameCodeDLLFullPath), TempGameCodeDLLFullPath);
 
+	char GameCodeLockFullPath[WIN32_STATE_FILE_NAME_COUNT];
+	Win32BuildEXEPathFileName(&Win32State, "lock.tmp",
+	                          sizeof(GameCodeLockFullPath), GameCodeLockFullPath);
+
 	LARGE_INTEGER PerfCountFrequencyResult;
 	QueryPerformanceFrequency(&PerfCountFrequencyResult);
 	GlobalPerfCountFrequency = PerfCountFrequencyResult.QuadPart;
@@ -1462,7 +1467,8 @@ WinMain(HINSTANCE Instance,
 				uint64 LastCycleCount = __rdtsc();
 
 				win32_game_code Game = Win32LoadGameCode(SourceGameCodeDLLFullPath,
-				                                         TempGameCodeDLLFullPath);
+				                                         TempGameCodeDLLFullPath,
+				                                         GameCodeLockFullPath);
 
 				//
 				// NOTE(Douglas): Entrada, atualização e renderização
@@ -1492,7 +1498,7 @@ WinMain(HINSTANCE Instance,
 					if(CompareFileTime(&NewDLLWriteTime, &Game.DLLLastWriteTime) != 0)
 					{
 						Win32UnloadGameCode(&Game);
-						Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath);
+						Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath, GameCodeLockFullPath);
 					}
 
 					game_controller_input *OldKeyboardController = GetController(OldInput, 0);
@@ -1850,7 +1856,7 @@ WinMain(HINSTANCE Instance,
 					uint64 CyclesElapsed = EndCycleCount - LastCycleCount;
 					LastCycleCount = EndCycleCount;
 
-					#if 0
+					#if 1
 					//int64 CounterElapsed = EndCounter.QuadPart - LastCounter.QuadPart;
 
 					// CounterElapsed / GlobalPerfCountFrequency = segundos por frame

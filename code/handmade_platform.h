@@ -34,6 +34,7 @@ extern "C" {
 // NOTE: Tipos
 //
 #include <stdint.h>
+#include <stddef.h> // Compatibilidade (size_t)
 
 typedef int8_t int8;
 typedef int16_t int16;
@@ -60,6 +61,39 @@ typedef struct thread_context
 {
 	int Placeholder;
 } thread_context;
+
+
+#define internal 		static
+#define global_variable static
+#define local_persist 	static
+
+#define Pi32 (3.14159265359f)
+
+/*
+	NOTE(Douglas):
+
+	HANDMADE_INTERNAL:
+		0 - Build para lançamento público
+		1 - Build apenas para desenvolvedor
+
+	HANDMADE_SLOW:
+		0 - Nenhum código lento permitido!
+		1 - Código lento é bem-vindo.
+*/
+
+// TODO(Douglas): Completar o macro "Assert"
+#if HANDMADE_SLOW
+	#define Assert(Expression) if(!(Expression)) { *(int *)0 = 0; }
+#else
+	#define Assert(Expression)
+#endif
+
+#define Kilobytes(Value) ((Value) * 1024LL)
+#define Megabytes(Value) (Kilobytes(Value) * 1024LL)
+#define Gigabytes(Value) (Megabytes(Value) * 1024LL)
+#define Terabytes(Value) (Gigabytes(Value) * 1024LL)
+
+#define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 
 //
 // NOTE(Douglas): Serviços que a plataforma fornece para o jogo
@@ -190,6 +224,24 @@ typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
 // TODO(Douglas): Reduzir a pressão na performace dessa função (medindo ou pedindo informações, etc.).
 #define GAME_GET_SOUND_SAMPLES(name) void name(thread_context *Thread, game_memory *Memory, game_output_sound_buffer *SoundBuffer)
 typedef GAME_GET_SOUND_SAMPLES(game_get_sound_samples);
+
+inline game_controller_input *
+GetController(game_input *Input, uint32 ControllerIndex)
+{
+	Assert(ControllerIndex < ArrayCount(Input->Controllers));
+	game_controller_input *Result = &Input->Controllers[ControllerIndex];
+	return(Result);
+}
+
+inline uint32
+SafeTruncateUInt64(uint64 Value)
+{
+	uint32 Result;
+	// TODO(Douglas): "Defines" para valores máximos
+	Assert(Value <= 0xFFFFFFFF); // UInt32Max
+	Result = (uint32) Value;
+	return(Result);
+}
 
 #ifdef __cplusplus
 }
