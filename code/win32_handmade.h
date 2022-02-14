@@ -23,7 +23,6 @@ struct win32_sound_output
 	uint32 RunningSampleIndex;
 	int BytesPerSample;
 	uint32 SecondaryBufferSize;
-	real32 tSine;
 	uint32 SafetyBytes;
 	// TODO(Douglas): "RunningSampleIndex" também deveria ser em bytes?
 	// TODO(Douglas): A matemática ficaria mais simples se nós adicionassemos um campo "bytes per second"?

@@ -1,4 +1,6 @@
 // TODO(Douglas): Esta não é uma camada de plataforma final!!!!
+// - Tentar arrumar o atraso de WM_SETCURSOR 
+
 // - Salvar locais do jogo
 // - Obter um identificador (handle) para o nosso executável
 // - Carregamento de recursos
@@ -6,13 +8,12 @@
 // - Raw Input (suporte para múltiplos teclados / controles)
 // - Sleep/timeBeginPeriod (para não "derreter" CPU e bateria (no caso de um notebook))
 // - ClipCursor() (para o suporte de múltiplos monitores)
-// - Suporte para Fullscreen
-// - WM_SETCURSOR para controlar a visibilidade do cursor
 // - QueryCancelAutoPlay
 // - WM_ACTIVEAPP para quando o jogo não ser a aplicação ativa
 // - Melhorias no método de Blit (talvez usar BitBlt)
 // - Aceleração de Hardware (OpenGL ou Direct3D ou Ambos???)
 // - GetKeyboardLayout (suporte para teclados francêses, suporte internacional para WASD)
+// - ChangeDisplaySettings caso detectarmos blits lentos em tela cheia?
 
 #include "handmade_platform.h"
 #include <windows.h>
@@ -30,8 +31,8 @@ global_variable bool32 GlobalPause;
 global_variable win32_offscreen_buffer GlobalBackBuffer; // Pixels
 global_variable LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer; // Áudio
 global_variable int64 GlobalPerfCountFrequency;
-
-
+global_variable bool32 DebugGlobalShowCursor;
+global_variable WINDOWPLACEMENT GlobalWindowPosition = {sizeof(GlobalWindowPosition)};
 
 // ~
 
@@ -455,25 +456,39 @@ Win32ResizeDIBSection(win32_offscreen_buffer *Buffer, int Width, int Height)
 internal void
 Win32DisplayBufferInWindow(HDC DeviceContext,
                            win32_offscreen_buffer *Buffer,
-                           int Width, int Height)
+                           int WindowWidth, int WindowHeight)
 {
-	int XOffset = 10;
-	int YOffset = 10;
-	
-	PatBlt(DeviceContext, 0, 0, Width, YOffset, BLACKNESS);
-	PatBlt(DeviceContext, 0, YOffset + Buffer->Height, Width, Height, BLACKNESS);
-	PatBlt(DeviceContext, 0, 0, XOffset, Height, BLACKNESS);
-	PatBlt(DeviceContext, XOffset + Buffer->Width, 0, Width, Height, BLACKNESS);
+	// TODO: Centralizar?
+	if(WindowWidth >= Buffer->Width*2 &&
+	   WindowHeight >= Buffer->Height*2)
+	{
+		StretchDIBits(DeviceContext,
+		              0, 0, Buffer->Width*2, Buffer->Height*2,
+		              0, 0, Buffer->Width, Buffer->Height,
+		              Buffer->Memory,
+		              &Buffer->Info,
+		              DIB_RGB_COLORS, SRCCOPY);
+	}
+	else
+	{
+		int XOffset = 10;
+		int YOffset = 10;
+
+		PatBlt(DeviceContext, 0, 0, WindowWidth, YOffset, BLACKNESS);
+		PatBlt(DeviceContext, 0, YOffset + Buffer->Height, WindowWidth, WindowHeight, BLACKNESS);
+		PatBlt(DeviceContext, 0, 0, XOffset, WindowHeight, BLACKNESS);
+		PatBlt(DeviceContext, XOffset + Buffer->Width, 0, WindowWidth, WindowHeight, BLACKNESS);
 
 	// NOTE(Douglas): Para fins de protótipo, vamos "blitar" os pixels 1-para-1
 	// para ter a certeza que não introduziremos nenhum artefato com o esticamento
 	// enquanto estamos aprendendo a renderizar.
-	StretchDIBits(DeviceContext,
-	              XOffset, YOffset, Buffer->Width, Buffer->Height,
-	              0, 0, Buffer->Width, Buffer->Height,
-	              Buffer->Memory,
-	              &Buffer->Info,
-	              DIB_RGB_COLORS, SRCCOPY);
+		StretchDIBits(DeviceContext,
+		              XOffset, YOffset, Buffer->Width, Buffer->Height,
+		              0, 0, Buffer->Width, Buffer->Height,
+		              Buffer->Memory,
+		              &Buffer->Info,
+		              DIB_RGB_COLORS, SRCCOPY);
+	}
 }
 
 LRESULT CALLBACK
@@ -500,6 +515,18 @@ Win32MainWindowCallback(HWND Window,
 			assert(RegisterRawInputDevices(&RawInputDevice, 1, sizeof(RAWINPUTDEVICE)) != 0);
 		} break;
 		*/
+
+		case WM_SETCURSOR:
+		{
+			if(DebugGlobalShowCursor)
+			{
+				Result = DefWindowProcA(Window, Message, WParam, LParam);
+			}
+			else
+			{
+				SetCursor(0);
+			}
+		} break;
 
 		case WM_ACTIVATEAPP:
 		{
@@ -1012,6 +1039,40 @@ Win32PlayBackInput(win32_state *State, game_input *NewInput)
 }
 
 internal void
+ToggleFullscreen(HWND Window)
+{
+	// NOTE: Código do Raymond Chen para fullscreen
+	// https://devblogs.microsoft.com/oldnewthing/20100412-00/?p=14353
+
+  DWORD Style = GetWindowLong(Window, GWL_STYLE);
+
+  if(Style & WS_OVERLAPPEDWINDOW)
+  {
+    MONITORINFO MonitorInfo = {sizeof(MonitorInfo)};
+
+    if(GetWindowPlacement(Window, &GlobalWindowPosition) &&
+       GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
+    {
+      SetWindowLong(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
+      SetWindowPos(Window, HWND_TOP,
+                   MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
+                   MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
+                   MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
+                   SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    }
+  }
+  else
+  {
+    SetWindowLong(Window, GWL_STYLE,
+                  Style | WS_OVERLAPPEDWINDOW);
+    SetWindowPlacement(Window, &GlobalWindowPosition);
+    SetWindowPos(Window, 0, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                 SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+  }
+}
+
+internal void
 Win32ProcessPendingMessages(win32_state *State, game_controller_input *KeyboardController)
 {
 	MSG Message;
@@ -1130,12 +1191,22 @@ Win32ProcessPendingMessages(win32_state *State, game_controller_input *KeyboardC
 						} break;
 						#endif // HANDMADE_INTERNAL
 					}
-				}
 
-				bool32 AltKeyWasDown = ((Message.lParam & (1 << 29)) != 0);
-				if(VKCode == VK_F4 && AltKeyWasDown)
-				{
-					GlobalRunning = false;
+					if(IsDown)
+					{
+						bool32 AltKeyWasDown = ((Message.lParam & (1 << 29)) != 0);
+						if(VKCode == VK_F4 && AltKeyWasDown)
+						{
+							GlobalRunning = false;
+						}
+						if(VKCode == VK_RETURN && AltKeyWasDown)
+						{
+							if(Message.hwnd)
+							{
+								ToggleFullscreen(Message.hwnd);
+							}
+						}
+					}
 				}
 			} break;
 
@@ -1324,10 +1395,15 @@ WinMain(HINSTANCE Instance,
 
 	Win32ResizeDIBSection(&GlobalBackBuffer, 960, 540);
 
+	#if HANDMADE_INTERNAL
+	DebugGlobalShowCursor = true;
+	#endif
+
 	WNDCLASSA WindowClass = {};
 	WindowClass.style = CS_HREDRAW | CS_VREDRAW;
 	WindowClass.lpfnWndProc = Win32MainWindowCallback;
 	WindowClass.hInstance = Instance;
+	WindowClass.hCursor = LoadCursor(0, IDC_ARROW);
 	//WindowClass.hIcon = ;
 	WindowClass.lpszClassName = "HandmadeHeroWindowClass";
 	if(RegisterClassA(&WindowClass))
