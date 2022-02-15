@@ -39,6 +39,7 @@ PushSize_(memory_arena *Arena,
 	return(Result);
 }
 
+#include "handmade_math.h"
 #include "handmade_intrinsics.h"
 #include "handmade_tile.h"
 
