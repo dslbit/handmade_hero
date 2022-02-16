@@ -511,7 +511,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	    ++ControllerIndex)
 	{
 		game_controller_input *Controller = GetController(Input, ControllerIndex);
-		if(Controller->IsAnalog)
+		//if(Controller->IsAnalog)
+		if(!Controller)
 		{
 			// NOTE(Douglas): Movimentação analógica
 		}
@@ -519,45 +520,49 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		{
 			// NOTE(Douglas): Movimentação digital
 			// NOTE: Pixels/Segundo
-			v2 dPlayer = {};
+			v2 ddPlayer = {}; // aceleração
 
 			if(Controller->MoveUp.EndedDown)
 			{
 				GameState->HeroFacingDirection = 1;
-				dPlayer.Y = 1.0f;
+				ddPlayer.Y = 1.0f;
 			}
 			if(Controller->MoveDown.EndedDown)
 			{
 				GameState->HeroFacingDirection = 3;
-				dPlayer.Y = -1.0f;
+				ddPlayer.Y = -1.0f;
 			}
 			if(Controller->MoveLeft.EndedDown)
 			{
 				GameState->HeroFacingDirection = 2;
-				dPlayer.X = -1.0f;
+				ddPlayer.X = -1.0f;
 			}
 			if(Controller->MoveRight.EndedDown)
 			{
 				GameState->HeroFacingDirection = 0;
-				dPlayer.X = 1.0f;
+				ddPlayer.X = 1.0f;
 			}
-			real32 PlayerSpeed = 2.0f;
+			real32 PlayerSpeed = 10.0f;
 
 			if(Controller->ActionUp.EndedDown)
 			{
-				PlayerSpeed = 15.0f;
+				PlayerSpeed = 50.0f;
 			}
 
-		dPlayer *= PlayerSpeed;
+			ddPlayer *= PlayerSpeed; // aceleração (força) de movimento
 
-			if(dPlayer.X != 0 && dPlayer.Y != 0)
+			if(ddPlayer.X != 0 && ddPlayer.Y != 0)
 			{
-				dPlayer *= 0.707106781f;
+				ddPlayer *= 0.707106781f;
 			}
 
-			// TODO(douglas): Movimentos na diagonal serão mais rápidos, arrumar isso quando tivermos vetores :)
+			ddPlayer += -1.5 * GameState->dPlayerP;// imitando uma força de atrito TODO: Substituir isso por Equações Diferenciais Ordinárias
+
 			tile_map_position NewPlayerP = GameState->PlayerP;
-			NewPlayerP.Offset += (Input->dtForFrame * dPlayer);
+			NewPlayerP.Offset = (0.5 * ddPlayer * Square(Input->dtForFrame)) +
+														(GameState->dPlayerP * Input->dtForFrame) +
+														NewPlayerP.Offset;
+			GameState->dPlayerP = (ddPlayer * Input->dtForFrame) + GameState->dPlayerP;
 			NewPlayerP = RecanonicalizePosition(TileMap, NewPlayerP);
 
 			// para hit test na esquerda
