@@ -235,7 +235,7 @@ Win32LoadGameCode(char *SourceDLLName, char *TempDLLName, char *LockFileName)
 		Result.DLLLastWriteTime = Win32GetLastWriteTime(SourceDLLName);
 
 		// NOTE(Douglas): "CopyFile" pode falhar, então esse loop, no momento é necessário (pelo menos pra debug)
-		while(1)
+		for(;;)
 		{
 			if(CopyFile(SourceDLLName, TempDLLName, FALSE)) break; // se o valor for diferente de zero, deu certo
 			if(GetLastError() == ERROR_FILE_NOT_FOUND) break;
@@ -1151,11 +1151,13 @@ Win32ProcessPendingMessages(win32_state *State, game_controller_input *KeyboardC
 
 						case VK_SPACE:
 						{
+							Win32ProcessKeyboardMessage(&KeyboardController->Start, IsDown);
 						} break;
 
 						case VK_ESCAPE:
 						{
-							GlobalRunning = false;
+							Win32ProcessKeyboardMessage(&KeyboardController->Back, IsDown);
+							//GlobalRunning = false;
 						} break;
 
 						#if HANDMADE_INTERNAL
@@ -1629,18 +1631,19 @@ WinMain(HINSTANCE Instance,
 							}
 
 							real32 Threshold = 0.5f;
+
 							Win32ProcessXInputDigitalButton((NewController->StickAverageX < -Threshold) ? 1 : 0,
 							                                &OldController->MoveLeft, 1,
 							                                &NewController->MoveLeft);
 							Win32ProcessXInputDigitalButton((NewController->StickAverageX > Threshold) ? 1 : 0,
-							                                &OldController->MoveLeft, 1,
-							                                &NewController->MoveLeft);
+							                                &OldController->MoveRight, 1,
+							                                &NewController->MoveRight);
 							Win32ProcessXInputDigitalButton((NewController->StickAverageY < -Threshold) ? 1 : 0,
-							                                &OldController->MoveRight, 1,
-							                                &NewController->MoveRight);
+							                                &OldController->MoveDown, 1,
+							                                &NewController->MoveDown);
 							Win32ProcessXInputDigitalButton((NewController->StickAverageY > Threshold) ? 1 : 0,
-							                                &OldController->MoveRight, 1,
-							                                &NewController->MoveRight);
+							                                &OldController->MoveUp, 1,
+							                                &NewController->MoveUp);
 
 							if((Pad->wButtons & XINPUT_GAMEPAD_DPAD_UP))
 							{
@@ -1665,6 +1668,19 @@ WinMain(HINSTANCE Instance,
 								NewController->StickAverageX = 1.0f;
 								NewController->IsAnalog = false;
 							}
+							
+							Win32ProcessXInputDigitalButton(Pad->wButtons,
+							                                &OldController->MoveLeft, XINPUT_GAMEPAD_DPAD_LEFT,
+							                                &NewController->MoveLeft);
+							Win32ProcessXInputDigitalButton(Pad->wButtons,
+							                                &OldController->MoveRight, XINPUT_GAMEPAD_DPAD_RIGHT,
+							                                &NewController->MoveRight);
+							Win32ProcessXInputDigitalButton(Pad->wButtons,
+							                                &OldController->MoveUp, XINPUT_GAMEPAD_DPAD_UP,
+							                                &NewController->MoveUp);
+							Win32ProcessXInputDigitalButton(Pad->wButtons,
+							                                &OldController->MoveDown, XINPUT_GAMEPAD_DPAD_DOWN,
+							                                &NewController->MoveDown);
 							
 							Win32ProcessXInputDigitalButton(Pad->wButtons,
 							                                &OldController->ActionDown, XINPUT_GAMEPAD_A,

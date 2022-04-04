@@ -65,17 +65,32 @@ struct hero_bitmaps
 	loaded_bitmap Torso;
 };
 
+struct entity
+{
+	bool32 Exists;
+	tile_map_position P; // pos
+	v2 dP; // vel
+
+	uint32 FacingDirection;
+
+	real32 Width;
+	real32 Height;
+};
+
 struct game_state
 {
 	memory_arena WorldArena;
 	world *World;
 	
+	// TODO: Deveríamos permitir divisão de tela para diferentes jogadores?
+	uint32 CameraFollowingEntityIndex;
 	tile_map_position CameraP;
-	tile_map_position PlayerP;
-	v2 dPlayerP; // velocidade do jogador
+
+	uint32 PlayerIndexForController[ArrayCount(((game_input *)0)->Controllers)];
+	uint32 EntityCount;
+	entity Entities[256];
 	
 	loaded_bitmap Backdrop;
-	uint32 HeroFacingDirection;
 	hero_bitmaps HeroBitmaps[4];
 };
 

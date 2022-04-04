@@ -1,5 +1,6 @@
 #if !defined(HANDMADE_TILE_H)
 
+// TODO: Trocar por v3, quando chegarmos em v3.
 struct tile_map_difference
 {
 	v2 dXY;
