@@ -333,10 +333,21 @@ MovePlayer(game_state *GameState,
 {
 	tile_map *TileMap = GameState->World->TileMap;
 
+	// NOTE: DPad & Analog acceleration vector length fix
+	// Alterando o comprimento do vetor da aceleração
+	real32 ddPLength = LengthSq(ddP);
+	if(ddPLength > 1.0f) // 1.0f = Max Acceleration Length
+	{
+		ddP *= 1.0f / SquareRoot(ddPLength);
+	}
+
+	// NOTE: DPad (only) Acceleration Manuel Fix 
+	#if 0
 	if(ddP.X != 0 && ddP.Y != 0)
 	{
 		ddP *= 0.707106781f;
 	}
+	#endif
 
 	real32 PlayerSpeed = 50.0f;
 	ddP *= PlayerSpeed; // aceleração (força) de movimento

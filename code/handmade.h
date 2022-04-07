@@ -2,8 +2,10 @@
 
 #include "handmade_platform.h"
 
-// TODO(Douglas): Swap, min, max ... macros??
+// TODO(Douglas): Swap macro
 
+#define Minimum(A, B) ((A < B) ? (A) : (B))
+#define Maximum(A, B) ((A > B) ? (A) : (B))
 
 //
 //

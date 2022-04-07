@@ -9,7 +9,7 @@ rem "/WX" tratar alertas como erro
 rem "/wd..." desativa um alerta específico
 rem "/Oi" permite o compilador trocar nossas instruções por instruções intrínsecas ("chama" o processador ali mesmo, se possível)
 rem "-GR-" desliga informações de tipos em tempo de execução (C++)
-rem "-EHa-" configurações do tratamento de exceções (C++)
+rem "-EHa-" desliga configurações do tratamento de exceções (C++)
 rem "-D..." define um símbolo
 rem "-subsystem:windows,5.01" define o tipo de aplicação e as especificações mínimas para 32bits (n funciona em x64, pelo menos no win10, alt: 6.00)
 rem "-MD" assume que o sistema operacional vai fornecer a Biblioteca Padrão C (há muitas, e nem sempre é a correta)
