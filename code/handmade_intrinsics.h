@@ -17,7 +17,7 @@ SquareRoot(real32 Real32)
 inline real32
 AbsoluteValue(real32 Real32)
 {
-	real32 Result = fabs(Real32);
+	real32 Result = (real32) fabs(Real32);
 	return(Result);
 }
 

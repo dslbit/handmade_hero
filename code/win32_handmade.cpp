@@ -5,8 +5,6 @@
 // - Obter um identificador (handle) para o nosso executável
 // - Carregamento de recursos
 // - Threading
-// - Raw Input (suporte para múltiplos teclados / controles)
-// - Sleep/timeBeginPeriod (para não "derreter" CPU e bateria (no caso de um notebook))
 // - ClipCursor() (para o suporte de múltiplos monitores)
 // - QueryCancelAutoPlay
 // - WM_ACTIVEAPP para quando o jogo não ser a aplicação ativa
